@@ -1,0 +1,25 @@
+Generate a DynamoDB table definition in Python using boto3. The table should have the following specifications:
+
+Table Name: {table_name}
+Hash Key: {hash_key}
+Range Key: {range_key}
+
+Attributes:
+{attributes}
+
+Instructions:
+1. Use boto3 for AWS DynamoDB
+2. Include proper docstrings and type hints
+3. Include methods for basic CRUD operations
+4. Include proper error handling
+5. Use best practices for DynamoDB table design
+6. Follow PEP 8 style guide
+7. Use dataclasses for data models
+8. Include async support where appropriate
+9. Make the code production-ready
+10. Include all necessary imports
+11. Use proper type hints
+12. Use async/await where appropriate
+
+Please provide your response in the following JSON format:
+{code_generation_format/python_format.txt} 

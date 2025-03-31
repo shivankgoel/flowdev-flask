@@ -1,0 +1,53 @@
+{
+    "package": "package name",
+    "imports": [
+        "import statements here"
+    ],
+    "class_definition": {
+        "name": "class name",
+        "access_modifier": "public/private/protected",
+        "is_final": true/false,
+        "extends": "parent class if any",
+        "implements": [
+            "interface names"
+        ],
+        "annotations": [
+            "class annotations"
+        ],
+        "fields": [
+            {
+                "name": "field name",
+                "type": "field type",
+                "access_modifier": "private/protected/public",
+                "is_final": true/false,
+                "is_static": true/false,
+                "annotations": [
+                    "field annotations"
+                ]
+            }
+        ],
+        "methods": [
+            {
+                "name": "method name",
+                "return_type": "return type",
+                "access_modifier": "private/protected/public",
+                "is_static": true/false,
+                "is_final": true/false,
+                "parameters": [
+                    {
+                        "name": "param name",
+                        "type": "param type",
+                        "is_final": true/false
+                    }
+                ],
+                "annotations": [
+                    "method annotations"
+                ],
+                "throws": [
+                    "exception types"
+                ],
+                "body": "method body"
+            }
+        ]
+    }
+} 

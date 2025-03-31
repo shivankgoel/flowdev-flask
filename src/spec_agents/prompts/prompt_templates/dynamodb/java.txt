@@ -1,0 +1,25 @@
+Generate a DynamoDB table definition in Java using AWS SDK v2. The table should have the following specifications:
+
+Table Name: {table_name}
+Hash Key: {hash_key}
+Range Key: {range_key}
+
+Attributes:
+{attributes}
+
+Instructions:
+1. Use AWS SDK v2 for DynamoDB
+2. Include proper annotations and documentation
+3. Include methods for basic CRUD operations
+4. Include proper error handling
+5. Use best practices for DynamoDB table design
+6. Follow Java coding conventions and style
+7. Include comprehensive Javadoc
+8. Use appropriate access modifiers
+9. Make the code production-ready
+10. Include all necessary imports
+11. Use proper Java annotations
+12. Include proper exception handling
+
+Please provide your response in the following JSON format:
+{code_generation_format/java_format.txt} 
