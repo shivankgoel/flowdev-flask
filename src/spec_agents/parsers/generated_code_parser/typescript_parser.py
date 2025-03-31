@@ -1,7 +1,7 @@
 from typing import List, Tuple, Optional
 import re
-from .base_parser import BaseCodeParser, ParsedCode
-from .exceptions import ParserError, ClassStructureError, ImportError
+from .base_parser import BaseCodeParser, GeneratedCode
+from .exceptions import ParseError, ClassStructureError, ImportError
 
 class TypeScriptCodeParser(BaseCodeParser):
     """Parser for TypeScript code."""
@@ -22,7 +22,7 @@ class TypeScriptCodeParser(BaseCodeParser):
             r'```\n(.*?)```'
         ]
         
-    def parse(self, response: str, language: str = "typescript") -> ParsedCode:
+    def parse(self, response: str, language: str = "typescript") -> GeneratedCode:
         """
         Parse TypeScript code from the LLM response.
         
@@ -31,7 +31,7 @@ class TypeScriptCodeParser(BaseCodeParser):
             language: Programming language (defaults to "typescript")
             
         Returns:
-            ParsedCode: Parsed TypeScript code and metadata
+            GeneratedCode: Generated TypeScript code and metadata
             
         Raises:
             ParserError: If parsing fails
@@ -51,14 +51,14 @@ class TypeScriptCodeParser(BaseCodeParser):
             # Validate code
             self._validate_code(cleaned_code)
             
-            return ParsedCode(
+            return GeneratedCode(
                 code=cleaned_code,
                 imports=imports,
                 language=language
             )
             
         except Exception as e:
-            raise ParserError(f"Failed to parse TypeScript code: {str(e)}")
+            raise ParseError(f"Failed to parse TypeScript code: {str(e)}")
             
     def _extract_imports(self, code: str) -> List[str]:
         """Extract TypeScript import statements."""
@@ -202,25 +202,25 @@ class TypeScriptCodeParser(BaseCodeParser):
         """
         # Check for required TypeScript features
         if 'interface' in code and not re.search(r'interface\s+\w+', code):
-            raise ParserError("Invalid interface declaration")
+            raise ParseError("Invalid interface declaration")
             
         if 'type' in code and not re.search(r'type\s+\w+', code):
-            raise ParserError("Invalid type declaration")
+            raise ParseError("Invalid type declaration")
             
         if 'enum' in code and not re.search(r'enum\s+\w+', code):
-            raise ParserError("Invalid enum declaration")
+            raise ParseError("Invalid enum declaration")
             
         # Check for proper type annotations
         if ':' in code and not re.search(r':\s*[A-Za-z<>\[\]|&]+', code):
-            raise ParserError("Invalid type annotation")
+            raise ParseError("Invalid type annotation")
             
         # Check for proper class implementation
         if 'implements' in code and not re.search(r'class\s+\w+\s+implements\s+\w+', code):
-            raise ParserError("Invalid class implementation")
+            raise ParseError("Invalid class implementation")
             
         # Check for proper extends
         if 'extends' in code and not re.search(r'class\s+\w+\s+extends\s+\w+', code):
-            raise ParserError("Invalid class extension")
+            raise ParseError("Invalid class extension")
 
     def _extract_code_block(self, response: str) -> Optional[str]:
         """Extract a TypeScript code block from the LLM response."""

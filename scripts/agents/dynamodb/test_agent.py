@@ -15,7 +15,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(o
 sys.path.append(project_root)
 
 from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
-from src.specs.flow_canvas_spec import ProgrammingLanguage
+from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec
 from src.spec_agents.dynamodb_agent import DynamoDBAgent
 from src.inference.openai_inference import OpenAIInference
 
@@ -87,6 +87,15 @@ def create_dynamodb_spec(config: TestConfig) -> DynamoDBTableSpec:
         attributes=config.attributes
     )
 
+def create_canvas_node(spec: DynamoDBTableSpec) -> CanvasNodeSpec:
+    """Create a CanvasNodeSpec from the DynamoDB spec."""
+    return CanvasNodeSpec(
+        id=f"dynamodb-{spec.name}",
+        type="dynamodb",
+        position={"x": 0, "y": 0},  # Default position for testing
+        data=NodeDataSpec(spec=spec)
+    )
+
 def parse_attributes(attributes_str: str) -> List[DynamoDBAttribute]:
     """Parse attribute string into list of DynamoDBAttribute objects."""
     attributes = []
@@ -133,21 +142,24 @@ async def main():
             retry_delay=args.retry_delay
         )
 
-        # Create DynamoDB spec
+        # Create DynamoDB spec and canvas node
         spec = create_dynamodb_spec(config)
+        canvas_node = create_canvas_node(spec)
         logger.info(f"Created DynamoDB spec with primary key '{config.primary_key}'")
 
         # Initialize inference client and agent
         inference_client = OpenAIInference()  # You'll need to implement this
         agent = DynamoDBAgent(
             inference_client=inference_client,
+            current_node=canvas_node,
+            programming_language=config.programming_language,
             max_retries=config.max_retries,
             retry_delay=config.retry_delay
         )
 
         # Generate code
         logger.info(f"Generating DynamoDB code in {config.programming_language.value}")
-        code = await agent.generate_code(spec, [], config.programming_language)
+        code = await agent.generate_code()
         
         # Print generated code
         print("\nGenerated Code:")

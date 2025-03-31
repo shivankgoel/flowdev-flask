@@ -2,8 +2,7 @@ from .generated_code_parser import (
     BaseCodeParser,
     GeneratedCode,
     JavaCodeParser,
-    PythonCodeParser,
-    TypeScriptCodeParser
+    PythonCodeParser
 )
 from .dynamodb_parser import (
     DynamoDBParser
@@ -17,7 +16,6 @@ __all__ = [
     # Generated code parsers
     'JavaCodeParser',
     'PythonCodeParser',
-    'TypeScriptCodeParser',
     
     # DynamoDB parsers
     'DynamoDBParser'

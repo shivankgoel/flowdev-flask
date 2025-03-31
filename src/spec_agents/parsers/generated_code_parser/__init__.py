@@ -1,12 +1,15 @@
 from .base_parser import BaseCodeParser, GeneratedCode
-from .java_parser import JavaCodeParser
 from .python_parser import PythonCodeParser
-from .typescript_parser import TypeScriptCodeParser
+from .java_parser import JavaCodeParser
+from .exceptions import ParseError, ImportError, ClassStructureError, IndentationError
 
 __all__ = [
     'BaseCodeParser',
     'GeneratedCode',
-    'JavaCodeParser',
     'PythonCodeParser',
-    'TypeScriptCodeParser'
+    'JavaCodeParser',
+    'ParseError',
+    'ImportError',
+    'ClassStructureError',
+    'IndentationError'
 ] 

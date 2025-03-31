@@ -1,45 +1,50 @@
-from typing import List, Optional
+from typing import List, Dict, Any
+import json
 from dataclasses import dataclass
-import re
-from .exceptions import ParserError
+from .exceptions import ParseError
 
 @dataclass
-class ParsedCode:
-    """Container for parsed code and its metadata."""
+class GeneratedCode:
+    """Container for parsed code and metadata."""
     code: str
     imports: List[str]
     language: str
 
 class BaseCodeParser:
-    """Base class for parsing generated code in different languages."""
+    """Base class for code parsers."""
     
     def __init__(self):
-        self.language = None
-        self.import_patterns = []
-        self.code_block_patterns = []
+        self.language = "base"
         
-    def parse(self, response: str, language: str) -> ParsedCode:
+    def parse(self, response: str, language: str = None) -> GeneratedCode:
         """
-        Parse the LLM response to extract code and imports.
+        Parse code from the response.
         
         Args:
             response: Raw response from the LLM
-            language: Programming language of the code
+            language: Programming language (defaults to self.language)
             
         Returns:
-            ParsedCode: Parsed code and metadata
+            GeneratedCode: Parsed code and metadata
             
         Raises:
-            ParserError: If parsing fails
+            ParseError: If parsing fails
         """
         try:
-            # Extract code block
-            code = self._extract_code_block(response)
-            if not code:
-                raise ParserError("No code block found in response")
-                
-            # Extract imports
-            imports = self._extract_imports(code)
+            # Parse JSON response
+            parsed_json = self._parse_json(response)
+            
+            # Extract code and imports
+            code = parsed_json.get('generated_code', '')
+            imports = parsed_json.get('imports', [])
+            
+            # Parse the code if it's a JSON string
+            if code.startswith('"') and code.endswith('"'):
+                try:
+                    code = json.loads(code)
+                except json.JSONDecodeError:
+                    # If it's not valid JSON, just use the string as is
+                    pass
             
             # Clean up code
             cleaned_code = self._clean_code(code)
@@ -47,41 +52,81 @@ class BaseCodeParser:
             # Validate code
             self._validate_code(cleaned_code)
             
-            return ParsedCode(
+            return GeneratedCode(
                 code=cleaned_code,
                 imports=imports,
-                language=language
+                language=language or self.language
             )
             
         except Exception as e:
-            raise ParserError(f"Failed to parse {language} code: {str(e)}")
+            raise ParseError(f"Failed to parse code: {str(e)}")
             
-    def _extract_code_block(self, response: str) -> Optional[str]:
-        """Extract code block from response using language-specific patterns."""
-        for pattern in self.code_block_patterns:
-            match = re.search(pattern, response, re.DOTALL)
-            if match:
-                return match.group(1).strip()
-        return None
+    def _parse_json(self, response: str) -> Dict[str, Any]:
+        """
+        Parse JSON response from LLM.
         
-    def _extract_imports(self, code: str) -> List[str]:
-        """Extract import statements from code using language-specific patterns."""
-        imports = []
-        for pattern in self.import_patterns:
-            matches = re.finditer(pattern, code)
-            imports.extend(match.group(1) for match in matches)
-        return list(set(imports))  # Remove duplicates
-        
+        Args:
+            response: Raw response string
+            
+        Returns:
+            Dict[str, Any]: Parsed JSON data
+            
+        Raises:
+            ParseError: If JSON parsing fails
+        """
+        try:
+            # Remove any markdown formatting if present
+            response = response.strip()
+            if response.startswith('```json'):
+                response = response[7:]
+            if response.endswith('```'):
+                response = response[:-3]
+                
+            # Parse JSON
+            return json.loads(response)
+        except json.JSONDecodeError as e:
+            raise ParseError(f"Invalid JSON response: {str(e)}")
+            
     def _clean_code(self, code: str) -> str:
-        """Clean up the extracted code."""
-        # Remove any markdown code block markers
-        code = re.sub(r'```\w*', '', code)
-        # Remove any leading/trailing whitespace
+        """
+        Clean up the code string.
+        
+        Args:
+            code: Raw code string
+            
+        Returns:
+            str: Cleaned code string
+        """
+        # Remove any markdown formatting if present
+        code = code.strip()
+        if code.startswith('```'):
+            code = code[3:]
+        if code.endswith('```'):
+            code = code[:-3]
+            
+        # Remove language identifier if present
+        if code.startswith('python') or code.startswith('java'):
+            code = code.split('\n', 1)[1]
+            
         return code.strip()
         
     def _validate_code(self, code: str) -> None:
-        """Validate the extracted code."""
+        """
+        Validate the code string.
+        
+        Args:
+            code: Code string to validate
+            
+        Raises:
+            ParseError: If code is invalid
+        """
         if not code:
-            raise ParserError("Empty code block")
-        if len(code.split('\n')) < 1:
-            raise ParserError("Code block contains no lines") 
+            raise ParseError("Empty code string")
+            
+    def get_language(self) -> str:
+        """Get the programming language."""
+        return self.language
+        
+    def get_language_version(self) -> str:
+        """Get the programming language version."""
+        return "1.0"  # Default version 

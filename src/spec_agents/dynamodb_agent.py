@@ -1,7 +1,7 @@
 import os
 from typing import List, Any, Dict, Optional
 from src.specs.dynamodb_spec import DynamoDBTableSpec
-from src.specs.flow_canvas_spec import ProgrammingLanguage
+from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec
 from .base_agent import BaseSpecAgent, CodeFeedback, FeedbackType, AgentStep
 from .prompts.formatted_prompts.dynamodb import (
     JavaDynamoDBFormatter,
@@ -17,10 +17,12 @@ class DynamoDBAgent(BaseSpecAgent):
     def __init__(
         self,
         inference_client,
+        current_node: CanvasNodeSpec,
+        programming_language: ProgrammingLanguage,
         max_retries: int = 3,
         retry_delay: float = 1.0
     ):
-        super().__init__(inference_client, max_retries, retry_delay)
+        super().__init__(inference_client, current_node, programming_language, max_retries, retry_delay)
         
         # Initialize formatters and parser
         self.formatters = {
@@ -30,12 +32,12 @@ class DynamoDBAgent(BaseSpecAgent):
         }
         self.parser = DynamoDBParser()
         
-        # Store current state
-        self.current_spec = None
-        self.current_programming_language = None
-        
-    def _create_prompt_data(self, spec: DynamoDBTableSpec) -> Dict[str, Any]:
-        """Create prompt data dictionary from spec."""
+    def _create_prompt_data(self) -> Dict[str, Any]:
+        """Create prompt data dictionary from node spec."""
+        if not isinstance(self.current_node.data.spec, DynamoDBTableSpec):
+            raise ValueError("Node data spec must be of type DynamoDBTableSpec")
+            
+        spec = self.current_node.data.spec
         return {
             "name": spec.name,
             "hash_key": spec.hash_key,
@@ -89,45 +91,38 @@ class DynamoDBAgent(BaseSpecAgent):
         
     async def generate_code(
         self, 
-        spec: DynamoDBTableSpec, 
-        input_specs: List[Any], 
-        programming_language: ProgrammingLanguage,
         retry_count: int = 0
     ) -> str:
-        """Generate DynamoDB table code based on the spec."""
-        # Store current state
-        self.current_spec = spec
-        self.current_programming_language = programming_language
-        
+        """Generate DynamoDB table code based on the node spec."""
         # Get language-specific formatter
-        formatter = self.formatters[programming_language]
+        formatter = self.formatters[self.programming_language]
         
         # Create and format prompt
-        prompt_data = self._create_prompt_data(spec)
+        prompt_data = self._create_prompt_data()
         prompt = formatter.format_prompt(**prompt_data)
         
         # Log prompt generation
         self._log_step(AgentStep.FORMAT_PROMPT, {
-            "table_name": spec.name,
-            "primary_key": spec.hash_key,
-            "sort_key": spec.range_key
+            "table_name": self.current_node.data.spec.name,
+            "primary_key": self.current_node.data.spec.hash_key,
+            "sort_key": self.current_node.data.spec.range_key
         })
         
         # Generate code using LLM
         response = await self.inference_client.generate(prompt)
         self._log_step(AgentStep.GENERATE_CODE, {
             "prompt_length": len(prompt),
-            "table_name": spec.name
+            "table_name": self.current_node.data.spec.name
         })
         
         # Parse and return the code
-        return self.parse_response(response, programming_language, retry_count)
+        return self.parse_response(response, retry_count)
         
-    def parse_response(self, response: str, programming_language: ProgrammingLanguage, retry_count: int) -> str:
+    def parse_response(self, response: str, retry_count: int) -> str:
         """Parse the LLM response to extract the generated code."""
         try:
             # Parse the response
-            result = self.parser.parse(response, programming_language.value)
+            result = self.parser.parse(response, self.programming_language.value)
             
             # Log successful parsing
             self._log_step(AgentStep.VALIDATE_CODE, {

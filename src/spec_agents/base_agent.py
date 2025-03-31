@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from src.inference import InferenceClient
+from src.specs.flow_canvas_spec import CanvasNodeSpec, ProgrammingLanguage
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -45,10 +46,14 @@ class BaseSpecAgent(ABC):
     def __init__(
         self,
         inference_client: InferenceClient,
+        current_node: CanvasNodeSpec,
+        programming_language: ProgrammingLanguage,
         max_retries: int = 3,
         retry_delay: float = 1.0
     ):
         self.inference_client = inference_client
+        self.current_node = current_node
+        self.programming_language = programming_language
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -80,18 +85,17 @@ class BaseSpecAgent(ABC):
         })
     
     @abstractmethod
-    async def generate_code(self, spec: Any, input_specs: List[Any], retry_count: int = 0) -> str:
-        """Generate code based on the spec and input specs."""
+    async def generate_code(self, retry_count: int = 0) -> str:
+        """Generate code based on the input specs."""
         pass
     
     @abstractmethod
-    def parse_response(self, response: str) -> str:
+    def parse_response(self, response: str, retry_count: int) -> str:
         """Parse the LLM response to extract the generated code."""
         pass
     
     async def generate_with_retry(
         self,
-        spec: Any,
         input_specs: List[Any],
         retry_count: int = 0
     ) -> str:
@@ -99,7 +103,6 @@ class BaseSpecAgent(ABC):
         Generate code with retry mechanism based on feedback history.
         
         Args:
-            spec: The spec for which code needs to be generated
             input_specs: List of specs from input nodes
             retry_count: Current retry count
             
@@ -112,18 +115,17 @@ class BaseSpecAgent(ABC):
         try:
             # Log start of generation attempt
             self._log_step(AgentStep.START, {
-                "spec": str(spec),
                 "input_specs": [str(s) for s in input_specs],
                 "retry_count": retry_count,
                 "feedback_history": {k: [str(f) for f in v] for k, v in self.feedback_history.items()}
             })
             
             # Generate code
-            code = await self.generate_code(spec, input_specs, retry_count)
-            self._log_step(AgentStep.GENERATE_CODE, {"spec": str(spec)})
+            code = await self.generate_code(retry_count)
+            self._log_step(AgentStep.GENERATE_CODE, {"input_specs": [str(s) for s in input_specs]})
             
             # Parse response
-            parsed_code = self.parse_response(code)
+            parsed_code = self.parse_response(code, retry_count)
             self._log_step(AgentStep.PARSE_RESPONSE, {"code_length": len(code)})
             
             # Log successful completion
@@ -144,7 +146,6 @@ class BaseSpecAgent(ABC):
             if retry_count < self.max_retries:
                 await asyncio.sleep(self.retry_delay)
                 return await self.generate_with_retry(
-                    spec,
                     input_specs,
                     retry_count + 1
                 )

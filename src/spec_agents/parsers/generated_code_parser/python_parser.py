@@ -1,9 +1,9 @@
 from typing import List, Tuple
 import re
-from .base_parser import BaseCodeParser, ParsedCode
+from .base_parser import BaseCodeParser, GeneratedCode
 from .config.language_config import PYTHON_CONFIG
 from .utils.import_extractor import ImportExtractor
-from .exceptions import ImportError, ClassStructureError, IndentationError, ParserError
+from .exceptions import ImportError, ClassStructureError, IndentationError, ParseError
 
 class PythonImportExtractor(ImportExtractor):
     """Python-specific import extraction."""
@@ -25,39 +25,27 @@ class PythonCodeParser(BaseCodeParser):
         super().__init__()
         self.language = "python"
         
-        # Python-specific patterns
-        self.import_patterns = [
-            r'^import\s+(\w+(?:\s*,\s*\w+)*)',
-            r'^from\s+(\w+(?:\.\w+)*)\s+import\s+(\w+(?:\s*,\s*\w+)*)'
-        ]
-        
-        self.code_block_patterns = [
-            r'```python\n(.*?)```',
-            r'```\n(.*?)```'
-        ]
-        
-    def parse(self, response: str, language: str = "python") -> ParsedCode:
+    def parse(self, response: str, language: str = "python") -> GeneratedCode:
         """
-        Parse Python code from the LLM response.
+        Parse Python code from the response.
         
         Args:
             response: Raw response from the LLM
             language: Programming language (defaults to "python")
             
         Returns:
-            ParsedCode: Parsed Python code and metadata
+            GeneratedCode: Parsed code and metadata
             
         Raises:
-            ParserError: If parsing fails
+            ParseError: If parsing fails
         """
         try:
-            # Extract code block
-            code = self._extract_code_block(response)
-            if not code:
-                raise ParserError("No Python code block found in response")
-                
-            # Extract imports
-            imports = self._extract_imports(code)
+            # Parse JSON response
+            parsed_json = self._parse_json(response)
+            
+            # Extract code and imports
+            code = parsed_json.get('generated_code', '')
+            imports = parsed_json.get('imports', [])
             
             # Clean up code
             cleaned_code = self._clean_code(code)
@@ -65,122 +53,40 @@ class PythonCodeParser(BaseCodeParser):
             # Validate code
             self._validate_code(cleaned_code)
             
-            return ParsedCode(
+            # Validate Python-specific structure
+            self._validate_python_structure(cleaned_code)
+            
+            return GeneratedCode(
                 code=cleaned_code,
                 imports=imports,
                 language=language
             )
             
         except Exception as e:
-            raise ParserError(f"Failed to parse Python code: {str(e)}")
+            raise ParseError(f"Failed to parse Python code: {str(e)}")
             
-    def _extract_imports(self, code: str) -> List[str]:
-        """Extract Python import statements."""
-        imports = []
-        
-        # Handle 'import' statements
-        import_matches = re.finditer(r'^import\s+(\w+(?:\s*,\s*\w+)*)', code, re.MULTILINE)
-        for match in import_matches:
-            imports.extend(imp.strip() for imp in match.group(1).split(','))
-            
-        # Handle 'from ... import' statements
-        from_matches = re.finditer(r'^from\s+(\w+(?:\.\w+)*)\s+import\s+(\w+(?:\s*,\s*\w+)*)', code, re.MULTILINE)
-        for match in from_matches:
-            module = match.group(1)
-            names = match.group(2).split(',')
-            imports.extend(f"{module}.{name.strip()}" for name in names)
-            
-        return list(set(imports))  # Remove duplicates
-
-    def get_language(self) -> str:
-        """Get the programming language name."""
-        return "python"
-
     def get_language_version(self) -> str:
-        """Get the programming language version."""
-        return "3.8+"
-
+        """Get the Python version."""
+        return "3.8"  # Default to Python 3.8
+        
     def get_filename(self, code: str) -> str:
-        """Get the filename based on the code content."""
-        # Extract class name from code
+        """Get the Python filename from the code."""
+        # Look for class name in the code
         class_match = re.compile(PYTHON_CONFIG.class_pattern, re.MULTILINE).search(code)
         if class_match:
-            class_name = class_match.group(1)
-            return f"{class_name.lower()}.py"
-        return "generated.py"
-
+            return f"{class_match.group(1).lower()}.py"
+        return "main.py"  # Default filename
+        
     def get_filepath(self, code: str) -> str:
-        """Get the filepath based on the code content."""
-        filename = self.get_filename(code)
-        return f"src/models/{filename}"
-
-    def _extract_code_parts(self, code: str) -> Tuple[List[str], str]:
+        """Get the filepath for the Python file."""
+        return f"src/models/{self.get_filename(code)}"
+        
+    def _validate_python_structure(self, code: str) -> None:
         """
-        Extract imports and main code from Python code.
+        Validate Python-specific code structure.
         
         Args:
-            code: The complete Python code string
-            
-        Returns:
-            Tuple[List[str], str]: List of imports and main code
-            
-        Raises:
-            ImportError: If imports are invalid
-            ClassStructureError: If class structure is invalid
-            IndentationError: If indentation is invalid
-        """
-        # Extract imports
-        imports = self._extract_imports(code)
-        
-        # Validate imports
-        self._validate_imports(imports)
-        
-        # Extract main code (everything after imports)
-        main_code = self._extract_main_code(code)
-        
-        # Validate class structure
-        self._validate_class_structure(main_code)
-        
-        return imports, main_code
-
-    def _validate_imports(self, imports: List[str]) -> None:
-        """
-        Validate Python imports.
-        
-        Args:
-            imports: List of import statements
-            
-        Raises:
-            ImportError: If imports are invalid
-        """
-        for imp in imports:
-            if not re.compile(PYTHON_CONFIG.import_validation_pattern).match(imp.split()[0]):
-                raise ImportError(f"Invalid import statement: {imp}")
-
-    def _extract_main_code(self, code: str) -> str:
-        """
-        Extract main code after imports.
-        
-        Args:
-            code: Complete code string
-            
-        Returns:
-            str: Main code without imports
-        """
-        # Find the last import statement
-        last_import = 0
-        for match in re.finditer(r'^import\s+(\w+(?:\s*,\s*\w+)*)', code, re.MULTILINE):
-            last_import = match.end()
-        
-        # Return everything after the last import
-        return code[last_import:].strip()
-
-    def _validate_class_structure(self, code: str) -> None:
-        """
-        Validate Python class structure.
-        
-        Args:
-            code: Main code string
+            code: Code string to validate
             
         Raises:
             ClassStructureError: If class structure is invalid
@@ -196,4 +102,20 @@ class PythonCodeParser(BaseCodeParser):
             lines = code.split('\n')
             for i, line in enumerate(lines):
                 if line.strip() and not line.startswith(' '):
-                    raise IndentationError(f"Invalid indentation at line {i+1}") 
+                    raise IndentationError(f"Invalid indentation at line {i+1}")
+                    
+    def _validate_code(self, code: str) -> None:
+        """
+        Validate the code string.
+        
+        Args:
+            code: Code string to validate
+            
+        Raises:
+            ParseError: If code is invalid
+        """
+        super()._validate_code(code)
+        
+        # Additional Python-specific validation
+        if not re.compile(PYTHON_CONFIG.class_pattern, re.MULTILINE).search(code):
+            raise ParseError("Code must contain a class definition") 

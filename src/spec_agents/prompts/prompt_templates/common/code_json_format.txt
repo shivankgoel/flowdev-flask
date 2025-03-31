@@ -4,6 +4,8 @@ Code Generation Instructions
 3) Keep code concise and to the point
 4) Do not put unnecessarily long comments in code, only add comments when necessary
 5) Use meaningful, clear and distinct variable and function names if not already provided by me
+6) Include full import lines in imports section in imports section
+7) Do not include imports in generated_code section
 
 Please provide your response in the following JSON format:
 
@@ -16,6 +18,6 @@ Json Format Instructions
 Json Response Structure
 
 {
-    imports: List[String],  # List of imports 
-    generated_code:  # Must be a properly escaped json string which can work with python json.loads()
+    imports: List[String],  # List of import statements 
+    generated_code:  # Code for class as escaped json string which can work with python json.loads()
 }

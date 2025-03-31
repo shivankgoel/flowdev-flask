@@ -4,6 +4,9 @@ from enum import Enum
 from .dynamodb_spec import DynamoDBTableSpec
 from .s3_spec import S3BucketSpec
 from .application_logic_spec import ApplicationLogicSpec
+from .data_model_spec import DataModelNodeSpec
+from .api_endpoint_spec import ApiEndpointSpec
+from .application_orchestrator_spec import ApplicationOrchestratorSpec
 
 @dataclass
 class CanvasPosition:
@@ -12,7 +15,14 @@ class CanvasPosition:
 
 @dataclass
 class NodeDataSpec:
-    spec: Union[DynamoDBTableSpec, S3BucketSpec, ApplicationLogicSpec]
+    spec: Union[
+        DynamoDBTableSpec,
+        S3BucketSpec,
+        ApplicationLogicSpec,
+        DataModelNodeSpec,
+        ApiEndpointSpec,
+        ApplicationOrchestratorSpec
+    ]
 
 @dataclass
 class CanvasNodeSpec:
