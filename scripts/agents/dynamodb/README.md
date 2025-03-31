@@ -13,7 +13,7 @@ This script allows you to test the DynamoDB code generation agent through the te
     --language python
 ```
 
-2. TypeScript Example with Verbose Output:
+2. TypeScript Example with Verbose Logging:
 ```bash
 ./test_agent.py \
     --table-name "Products" \
@@ -44,7 +44,29 @@ This script allows you to test the DynamoDB code generation agent through the te
 | `--language` | Yes | - | Programming language (java/python/typescript) |
 | `--max-retries` | No | 3 | Maximum number of retries |
 | `--retry-delay` | No | 1.0 | Delay between retries in seconds |
-| `--verbose` | No | False | Enable detailed observation output |
+| `--verbose` | No | False | Enable detailed logging output |
+
+## Logging
+
+The script uses Python's built-in logging system with the following features:
+
+1. **Log Levels**:
+   - INFO: Normal operation messages
+   - DEBUG: Detailed information (enabled with --verbose)
+   - ERROR: Error messages and exceptions
+
+2. **Output Destinations**:
+   - Console: Human-readable format
+   - File: Detailed format with additional context
+   - Log files are stored in the project's `logs` directory
+
+3. **Log Format**:
+   - Console: `%(asctime)s - %(name)s - %(levelname)s - %(message)s`
+   - File: `%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(step)s - %(details)s`
+
+4. **Log File Location**:
+   - Default: `{project_root}/logs/dynamodb_agent.log`
+   - Directory is created automatically if it doesn't exist
 
 ## Supported Attribute Types
 
@@ -80,8 +102,8 @@ orderId:String,customerId:String,total:Number,items:List,status:String,createdAt
 
 The script will output:
 1. Generated code for the DynamoDB table
-2. Execution summary
-3. Detailed observations (when --verbose is used)
+2. Log messages to console and file
+3. Detailed debug information (when --verbose is used)
 
 ## Error Handling
 
@@ -90,13 +112,15 @@ The script includes validation for:
 - Valid attribute types
 - Code generation errors
 - Parsing errors
+- All errors are logged with full stack traces
 
 ## Tips
 
-1. Use the `--verbose` flag to see detailed information about each step of the code generation process.
+1. Use the `--verbose` flag to see detailed logging information about each step of the code generation process.
 2. If code generation fails, try increasing `--max-retries` and `--retry-delay`.
 3. Make sure attribute names don't contain spaces (use underscores instead).
-4. The script automatically adds the project root to the Python path, so you can run it from any directory.
+4. Check the log file for detailed information about the execution.
+5. The script automatically adds the project root to the Python path, so you can run it from any directory.
 
 ## Common Issues
 
@@ -115,6 +139,11 @@ The script includes validation for:
    error: argument --language: invalid choice: 'javascript' (choose from 'java', 'python', 'typescript')
    ```
 
+4. **Invalid Attribute Format**:
+   ```
+   Error: Invalid attribute format 'name type'. Expected format: 'name:type'
+   ```
+
 ## Development
 
 ### Adding New Features
@@ -128,10 +157,12 @@ The script includes validation for:
 2. Test with various attribute combinations
 3. Test error cases and validation
 4. Test retry mechanism with different settings
+5. Test logging with different verbosity levels
 
 ### Dependencies
 - Python 3.7+
 - Required packages:
   - `dataclasses`
   - `argparse`
-  - `typing` 
+  - `typing`
+  - `logging` (built-in) 

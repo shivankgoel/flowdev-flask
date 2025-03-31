@@ -3,18 +3,56 @@
 import os
 import sys
 import argparse
+import logging
 from typing import List, Optional
 from dataclasses import dataclass
 from enum import Enum
+import asyncio
+from pprint import pprint
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(project_root)
 
-from specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
-from specs.flow_canvas_spec import ProgrammingLanguage
-from spec_agents.dynamodb_agent import DynamoDBAgent
-from inference import InferenceClient
+from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
+from src.specs.flow_canvas_spec import ProgrammingLanguage
+from src.spec_agents.dynamodb_agent import DynamoDBAgent
+from src.inference.openai_inference import OpenAIInference
+
+# Configure logging
+def setup_logging(verbose: bool = False):
+    """Configure logging based on verbosity level."""
+    level = logging.DEBUG if verbose else logging.INFO
+    
+    # Create formatters
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    # Create handlers
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(console_formatter)
+    
+    # Create logs directory if it doesn't exist
+    log_dir = os.path.join(project_root, 'logs')
+    os.makedirs(log_dir, exist_ok=True)
+    
+    # File handler for detailed logs
+    file_handler = logging.FileHandler(
+        os.path.join(log_dir, 'dynamodb_agent.log')
+    )
+    file_handler.setFormatter(file_formatter)
+    
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
+    
+    return root_logger
 
 class AttributeType(Enum):
     """Supported DynamoDB attribute types."""
@@ -34,44 +72,39 @@ class TestConfig:
     """Configuration for testing the DynamoDB agent."""
     table_name: str
     primary_key: str
+    range_key: str
     attributes: List[DynamoDBAttribute]
     programming_language: ProgrammingLanguage
     max_retries: int = 3
     retry_delay: float = 1.0
-    observation_callback: Optional[callable] = None
 
 def create_dynamodb_spec(config: TestConfig) -> DynamoDBTableSpec:
     """Create a DynamoDBTableSpec from the test configuration."""
     return DynamoDBTableSpec(
-        table_name=config.table_name,
-        primary_key=config.primary_key,
+        name=config.table_name,
+        hash_key=config.primary_key,
+        range_key=config.range_key,
         attributes=config.attributes
     )
-
-def observation_callback(observation):
-    """Callback function to print observations during code generation."""
-    print(f"\n[Step: {observation.step.value}]")
-    print(f"Time: {observation.timestamp}")
-    print("Details:")
-    for key, value in observation.details.items():
-        print(f"  {key}: {value}")
-    if observation.error:
-        print(f"Error: {observation.error}")
 
 def parse_attributes(attributes_str: str) -> List[DynamoDBAttribute]:
     """Parse attribute string into list of DynamoDBAttribute objects."""
     attributes = []
     for attr_str in attributes_str.split(','):
-        name, type_str = attr_str.split(':')
         try:
-            attr_type = AttributeType[type_str.upper()]
-        except KeyError:
-            print(f"Error: Invalid attribute type '{type_str}'. Must be one of: {', '.join(attr.name for attr in AttributeType)}")
+            name, type_str = attr_str.split(':')
+            try:
+                attr_type = AttributeType[type_str.upper()]
+            except KeyError:
+                print(f"Error: Invalid attribute type '{type_str}'. Must be one of: {', '.join(attr.name for attr in AttributeType)}")
+                sys.exit(1)
+            attributes.append(DynamoDBAttribute(name=name.strip(), type=attr_type.value))
+        except ValueError:
+            print(f"Error: Invalid attribute format '{attr_str}'. Expected format: 'name:type'")
             sys.exit(1)
-        attributes.append(DynamoDBAttribute(name=name.strip(), type=attr_type.value))
     return attributes
 
-def main():
+async def main():
     parser = argparse.ArgumentParser(description='Test DynamoDB Agent')
     parser.add_argument('--table-name', required=True, help='Name of the DynamoDB table')
     parser.add_argument('--primary-key', required=True, help='Name of the primary key')
@@ -80,50 +113,54 @@ def main():
     parser.add_argument('--max-retries', type=int, default=3, help='Maximum number of retries')
     parser.add_argument('--retry-delay', type=float, default=1.0, help='Delay between retries in seconds')
     parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--range-key', required=False, help='Name of the range key')
 
     args = parser.parse_args()
 
-    # Create test configuration
-    config = TestConfig(
-        table_name=args.table_name,
-        primary_key=args.primary_key,
-        attributes=parse_attributes(args.attributes),
-        programming_language=ProgrammingLanguage(args.language),
-        max_retries=args.max_retries,
-        retry_delay=args.retry_delay,
-        observation_callback=observation_callback if args.verbose else None
-    )
-
-    # Create DynamoDB spec
-    spec = create_dynamodb_spec(config)
-
-    # Initialize inference client and agent
-    inference_client = InferenceClient()  # You'll need to implement this
-    agent = DynamoDBAgent(
-        inference_client=inference_client,
-        max_retries=config.max_retries,
-        retry_delay=config.retry_delay,
-        observation_callback=config.observation_callback
-    )
+    # Setup logging
+    logger = setup_logging(args.verbose)
+    logger.info("Starting DynamoDB agent test")
 
     try:
+        # Create test configuration
+        config = TestConfig(
+            table_name=args.table_name,
+            primary_key=args.primary_key,
+            range_key=args.range_key,
+            attributes=parse_attributes(args.attributes),
+            programming_language=ProgrammingLanguage(args.language),
+            max_retries=args.max_retries,
+            retry_delay=args.retry_delay
+        )
+
+        # Create DynamoDB spec
+        spec = create_dynamodb_spec(config)
+        logger.info(f"Created DynamoDB spec with primary key '{config.primary_key}'")
+
+        # Initialize inference client and agent
+        inference_client = OpenAIInference()  # You'll need to implement this
+        agent = DynamoDBAgent(
+            inference_client=inference_client,
+            max_retries=config.max_retries,
+            retry_delay=config.retry_delay
+        )
+
         # Generate code
-        print(f"\nGenerating DynamoDB code for table '{spec.table_name}' in {config.programming_language.value}...")
-        code = agent.generate_code(spec, [], config.programming_language)
+        logger.info(f"Generating DynamoDB code in {config.programming_language.value}")
+        code = await agent.generate_code(spec, [], config.programming_language)
         
         # Print generated code
         print("\nGenerated Code:")
         print("-" * 80)
-        print(code)
+        pprint(code)
         print("-" * 80)
 
-        # Print execution summary
-        print("\nExecution Summary:")
-        print(agent.get_observation_summary())
+        logger.info("Code generation completed successfully")
+        return 0
 
     except Exception as e:
-        print(f"\nError: {str(e)}")
-        sys.exit(1)
+        logger.error(f"Error during code generation: {str(e)}", exc_info=True)
+        return 1
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 
