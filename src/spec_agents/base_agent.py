@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional, Callable
-from inference import InferenceClient
+from typing import List, Dict, Any, Optional
+from src.inference import InferenceClient
 import time
 from dataclasses import dataclass
 from enum import Enum
-import json
+import logging
+import asyncio
+
+logger = logging.getLogger(__name__)
 
 class AgentStep(Enum):
     """Enumeration of possible agent steps."""
@@ -18,129 +21,86 @@ class AgentStep(Enum):
     COMPLETE = "complete"
     ERROR = "error"
 
-@dataclass
-class AgentObservation:
-    """Observation of an agent's step."""
-    step: AgentStep
-    timestamp: float
-    details: Dict[str, Any]
-    error: Optional[str] = None
+class FeedbackType(Enum):
+    """Types of feedback that can be generated."""
+    ERROR = "error"
+    MISSING_IMPORT = "missing_import"
+    MISSING_PATTERN = "missing_pattern"
+    VALIDATION_ERROR = "validation_error"
+    TYPE_ERROR = "type_error"
+    SYNTAX_ERROR = "syntax_error"
+    OTHER = "other"
 
-class GenerationFeedback:
-    """Feedback about code generation that can be used for retries."""
-    def __init__(
-        self,
-        error_message: Optional[str] = None,
-        missing_imports: Optional[List[str]] = None,
-        missing_patterns: Optional[List[str]] = None,
-        validation_errors: Optional[List[str]] = None,
-        additional_context: Optional[Dict[str, Any]] = None
-    ):
-        self.error_message = error_message
-        self.missing_imports = missing_imports or []
-        self.missing_patterns = missing_patterns or []
-        self.validation_errors = validation_errors or []
-        self.additional_context = additional_context or {}
+@dataclass
+class CodeFeedback:
+    """Structured feedback about code generation issues."""
+    feedback_type: FeedbackType
+    message: str
+    details: Optional[Dict[str, Any]] = None
+
+    def __str__(self) -> str:
+        return f"{self.feedback_type.value}: {self.message}"
 
 class BaseSpecAgent(ABC):
     def __init__(
         self,
         inference_client: InferenceClient,
         max_retries: int = 3,
-        retry_delay: float = 1.0,
-        observation_callback: Optional[Callable[[AgentObservation], None]] = None
+        retry_delay: float = 1.0
     ):
         self.inference_client = inference_client
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.observation_callback = observation_callback
-        self.observations: List[AgentObservation] = []
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.feedback_history: Dict[int, List[CodeFeedback]] = {}
         
-    def _observe(self, step: AgentStep, details: Dict[str, Any], error: Optional[str] = None) -> None:
-        """
-        Record an observation of the agent's progress.
+    def _log_step(self, step: AgentStep, details: Dict[str, Any], error: Optional[str] = None) -> None:
+        """Log an agent step with details."""
+        log_data = {
+            "step": step.value,
+            "timestamp": time.time(),
+            **details
+        }
         
-        Args:
-            step: The current step being observed
-            details: Additional details about the step
-            error: Optional error message if the step failed
-        """
-        observation = AgentObservation(
-            step=step,
-            timestamp=time.time(),
-            details=details,
-            error=error
-        )
-        self.observations.append(observation)
+        if error:
+            self.logger.error(f"Step {step.value} failed: {error}", extra=log_data)
+        else:
+            self.logger.info(f"Step {step.value} completed", extra=log_data)
+
+    def _store_feedback(self, retry_count: int, feedback_list: List[CodeFeedback]) -> None:
+        """Store feedback for a specific retry attempt."""
+        if retry_count not in self.feedback_history:
+            self.feedback_history[retry_count] = []
+        self.feedback_history[retry_count].extend(feedback_list)
         
-        if self.observation_callback:
-            self.observation_callback(observation)
-            
-    def get_observations(self) -> List[AgentObservation]:
-        """
-        Get all observations recorded during execution.
-        
-        Returns:
-            List[AgentObservation]: List of observations
-        """
-        return self.observations
-        
-    def get_observation_summary(self) -> str:
-        """
-        Get a human-readable summary of the agent's execution.
-        
-        Returns:
-            str: Summary of observations
-        """
-        summary = []
-        for obs in self.observations:
-            step_info = f"Step: {obs.step.value}"
-            if obs.error:
-                step_info += f" (Error: {obs.error})"
-            summary.append(step_info)
-        return "\n".join(summary)
-        
+        self._log_step(AgentStep.RETRY, {
+            "feedback": [str(f) for f in feedback_list],
+            "retry_count": retry_count,
+            "feedback_history": {k: [str(f) for f in v] for k, v in self.feedback_history.items()}
+        })
+    
     @abstractmethod
-    def generate_code(self, spec: Any, input_specs: List[Any]) -> str:
-        """
-        Generate code based on the spec and input specs.
-        
-        Args:
-            spec: The spec for which code needs to be generated
-            input_specs: List of specs from input nodes
-            
-        Returns:
-            str: Generated code
-        """
+    async def generate_code(self, spec: Any, input_specs: List[Any], retry_count: int = 0) -> str:
+        """Generate code based on the spec and input specs."""
         pass
     
     @abstractmethod
     def parse_response(self, response: str) -> str:
-        """
-        Parse the LLM response to extract the generated code.
-        
-        Args:
-            response: Raw response from the LLM
-            
-        Returns:
-            str: Parsed code
-        """
+        """Parse the LLM response to extract the generated code."""
         pass
     
-    def generate_with_retry(
+    async def generate_with_retry(
         self,
         spec: Any,
         input_specs: List[Any],
-        feedback: Optional[GenerationFeedback] = None,
         retry_count: int = 0
     ) -> str:
         """
-        Generate code with retry mechanism based on feedback.
+        Generate code with retry mechanism based on feedback history.
         
         Args:
             spec: The spec for which code needs to be generated
             input_specs: List of specs from input nodes
-            feedback: Optional feedback from previous generation attempt
             retry_count: Current retry count
             
         Returns:
@@ -150,106 +110,43 @@ class BaseSpecAgent(ABC):
             ValueError: If max retries exceeded or generation fails
         """
         try:
-            self._observe(AgentStep.START, {
+            # Log start of generation attempt
+            self._log_step(AgentStep.START, {
                 "spec": str(spec),
                 "input_specs": [str(s) for s in input_specs],
                 "retry_count": retry_count,
-                "feedback": str(feedback) if feedback else None
+                "feedback_history": {k: [str(f) for f in v] for k, v in self.feedback_history.items()}
             })
             
             # Generate code
-            self._observe(AgentStep.GENERATE_CODE, {"spec": str(spec)})
-            code = self.generate_code(spec, input_specs)
+            code = await self.generate_code(spec, input_specs, retry_count)
+            self._log_step(AgentStep.GENERATE_CODE, {"spec": str(spec)})
             
-            # Parse and validate the response
-            self._observe(AgentStep.PARSE_RESPONSE, {"code_length": len(code)})
+            # Parse response
             parsed_code = self.parse_response(code)
+            self._log_step(AgentStep.PARSE_RESPONSE, {"code_length": len(code)})
             
-            self._observe(AgentStep.COMPLETE, {
+            # Log successful completion
+            self._log_step(AgentStep.COMPLETE, {
                 "code_length": len(parsed_code),
                 "retry_count": retry_count
             })
             return parsed_code
             
         except ValueError as e:
-            self._observe(AgentStep.ERROR, {
+            # Log error
+            self._log_step(AgentStep.ERROR, {
                 "error": str(e),
                 "retry_count": retry_count
             }, str(e))
             
-            # If we have feedback, use it to improve the next attempt
-            if feedback:
-                self._observe(AgentStep.RETRY, {
-                    "feedback": str(feedback),
-                    "retry_count": retry_count
-                })
-                # Update prompt with feedback
-                self._update_prompt_with_feedback(feedback)
-                
-            # Check if we should retry
+            # Handle retry logic
             if retry_count < self.max_retries:
-                # Wait before retrying
-                time.sleep(self.retry_delay)
-                
-                # Increment retry count and try again
-                return self.generate_with_retry(
+                await asyncio.sleep(self.retry_delay)
+                return await self.generate_with_retry(
                     spec,
                     input_specs,
-                    feedback,
                     retry_count + 1
                 )
-            else:
-                raise ValueError(f"Max retries ({self.max_retries}) exceeded: {str(e)}")
-                
-    @abstractmethod
-    def _update_prompt_with_feedback(self, feedback: GenerationFeedback) -> None:
-        """
-        Update the prompt template based on feedback.
-        
-        Args:
-            feedback: Feedback from previous generation attempt
-        """
-        pass
-    
-    def _load_prompt_template(self, template_path: str) -> str:
-        """
-        Load a prompt template from file.
-        
-        Args:
-            template_path: Path to the prompt template file
             
-        Returns:
-            str: The prompt template
-        """
-        self._observe(AgentStep.LOAD_TEMPLATE, {"template_path": template_path})
-        with open(template_path, 'r') as f:
-            template = f.read()
-        return template
-            
-    def _format_prompt(self, template: str, **kwargs) -> str:
-        """
-        Format a prompt template with the given values.
-        
-        Args:
-            template: The prompt template
-            **kwargs: Values to format into the template
-            
-        Returns:
-            str: Formatted prompt
-        """
-        self._observe(AgentStep.FORMAT_PROMPT, {
-            "template_length": len(template),
-            "kwargs_keys": list(kwargs.keys())
-        })
-        return template.format(**kwargs)
-        
-    def _save_formatted_prompt(self, prompt: str, output_path: str) -> None:
-        """
-        Save a formatted prompt to file.
-        
-        Args:
-            prompt: The formatted prompt
-            output_path: Path where to save the prompt
-        """
-        with open(output_path, 'w') as f:
-            f.write(prompt) 
+            raise ValueError(f"Max retries ({self.max_retries}) exceeded: {str(e)}") 

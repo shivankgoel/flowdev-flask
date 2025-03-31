@@ -1,105 +1,87 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List
-import json
+from typing import List, Optional
 from dataclasses import dataclass
+import re
+from .exceptions import ParserError
 
 @dataclass
-class GeneratedCode:
-    """Represents the parsed generated code with metadata."""
-    language: str
-    language_version: str
-    filename: str
-    filepath: str
-    imports: List[str]
+class ParsedCode:
+    """Container for parsed code and its metadata."""
     code: str
-    metadata: Dict[str, Any]
+    imports: List[str]
+    language: str
 
-class BaseCodeParser(ABC):
-    """Base class for language-specific code parsers."""
+class BaseCodeParser:
+    """Base class for parsing generated code in different languages."""
     
     def __init__(self):
-        self.required_fields = [
-            "language",
-            "language_version",
-            "filename",
-            "filepath",
-            "generated_code"
-        ]
-
-    def parse(self, response: str) -> GeneratedCode:
+        self.language = None
+        self.import_patterns = []
+        self.code_block_patterns = []
+        
+    def parse(self, response: str, language: str) -> ParsedCode:
         """
-        Parse the LLM response into a structured format.
+        Parse the LLM response to extract code and imports.
         
         Args:
-            response: The LLM response string
+            response: Raw response from the LLM
+            language: Programming language of the code
             
         Returns:
-            GeneratedCode: Parsed code with metadata
+            ParsedCode: Parsed code and metadata
             
         Raises:
-            ValueError: If response is invalid or missing required fields
+            ParserError: If parsing fails
         """
         try:
-            # Parse JSON response
-            data = json.loads(response)
+            # Extract code block
+            code = self._extract_code_block(response)
+            if not code:
+                raise ParserError("No code block found in response")
+                
+            # Extract imports
+            imports = self._extract_imports(code)
             
-            # Validate required fields
-            self._validate_required_fields(data)
+            # Clean up code
+            cleaned_code = self._clean_code(code)
             
-            # Extract imports and code
-            imports, code = self._extract_code_parts(data["generated_code"])
+            # Validate code
+            self._validate_code(cleaned_code)
             
-            # Create GeneratedCode instance
-            return GeneratedCode(
-                language=data["language"],
-                language_version=data["language_version"],
-                filename=data["filename"],
-                filepath=data["filepath"],
+            return ParsedCode(
+                code=cleaned_code,
                 imports=imports,
-                code=code,
-                metadata=self._extract_metadata(data)
+                language=language
             )
             
-        except json.JSONDecodeError:
-            raise ValueError("Invalid JSON response from LLM")
         except Exception as e:
-            raise ValueError(f"Error parsing LLM response: {str(e)}")
-
-    def _validate_required_fields(self, data: Dict[str, Any]) -> None:
-        """Validate that all required fields are present."""
-        missing_fields = [
-            field for field in self.required_fields 
-            if field not in data
-        ]
-        if missing_fields:
-            raise ValueError(
-                f"Missing required fields in LLM response: {', '.join(missing_fields)}"
-            )
-
-    @abstractmethod
-    def _extract_code_parts(self, code: str) -> tuple[List[str], str]:
-        """
-        Extract imports and main code from the generated code.
-        
-        Args:
-            code: The complete generated code string
+            raise ParserError(f"Failed to parse {language} code: {str(e)}")
             
-        Returns:
-            tuple[List[str], str]: List of imports and main code
-        """
-        pass
-
-    def _extract_metadata(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Extract additional metadata from the response.
+    def _extract_code_block(self, response: str) -> Optional[str]:
+        """Extract code block from response using language-specific patterns."""
+        for pattern in self.code_block_patterns:
+            match = re.search(pattern, response, re.DOTALL)
+            if match:
+                return match.group(1).strip()
+        return None
         
-        Args:
-            data: The parsed JSON response
-            
-        Returns:
-            Dict[str, Any]: Additional metadata
-        """
-        return {
-            k: v for k, v in data.items() 
-            if k not in self.required_fields
-        } 
+    def _extract_imports(self, code: str) -> List[str]:
+        """Extract import statements from code using language-specific patterns."""
+        imports = []
+        for pattern in self.import_patterns:
+            matches = re.finditer(pattern, code)
+            imports.extend(match.group(1) for match in matches)
+        return list(set(imports))  # Remove duplicates
+        
+    def _clean_code(self, code: str) -> str:
+        """Clean up the extracted code."""
+        # Remove any markdown code block markers
+        code = re.sub(r'```\w*', '', code)
+        # Remove any leading/trailing whitespace
+        return code.strip()
+        
+    def _validate_code(self, code: str) -> None:
+        """Validate the extracted code."""
+        if not code:
+            raise ParserError("Empty code block")
+        if len(code.split('\n')) < 1:
+            raise ParserError("Code block contains no lines") 

@@ -1,6 +1,6 @@
-Generate a DynamoDB table definition in TypeScript using AWS SDK v3. The table should have the following specifications:
+Generate a DynamoDB table dao in TypeScript using AWS SDK v3. The table has the following specifications:
 
-Table Name: {table_name}
+Table Name: {name}
 Hash Key: {hash_key}
 Range Key: {range_key}
 
@@ -21,6 +21,3 @@ Instructions:
 11. Include all necessary imports
 12. Use proper TypeScript types
 13. Use async/await where appropriate
-
-Please provide your response in the following JSON format:
-{code_generation_format/typescript_format.txt} 

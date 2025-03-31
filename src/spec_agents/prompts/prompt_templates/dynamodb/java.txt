@@ -1,6 +1,6 @@
-Generate a DynamoDB table definition in Java using AWS SDK v2. The table should have the following specifications:
+Generate a DynamoDB table dao layer in Java using AWS SDK v2. The table has the following specifications:
 
-Table Name: {table_name}
+Table Name: {name}
 Hash Key: {hash_key}
 Range Key: {range_key}
 
@@ -20,6 +20,3 @@ Instructions:
 10. Include all necessary imports
 11. Use proper Java annotations
 12. Include proper exception handling
-
-Please provide your response in the following JSON format:
-{code_generation_format/java_format.txt} 

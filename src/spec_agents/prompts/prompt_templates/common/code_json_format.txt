@@ -1,0 +1,21 @@
+Code Generation Instructions
+1) All your code must be within a single class
+2) Code must implement full functionality, should run end to end
+3) Keep code concise and to the point
+4) Do not put unnecessarily long comments in code, only add comments when necessary
+5) Use meaningful, clear and distinct variable and function names if not already provided by me
+
+Please provide your response in the following JSON format:
+
+Json Format Instructions
+
+1) Please respond with a single, valid JSON object that can be directly parsed using json.loads() in Python.
+2) All newline characters in string values must be properly escaped (e.g. \\n instead of \n).
+3) Do not include markdown formatting (no ```json).
+
+Json Response Structure
+
+{
+    imports: List[String],  # List of imports 
+    generated_code:  # Must be a properly escaped json string which can work with python json.loads()
+}

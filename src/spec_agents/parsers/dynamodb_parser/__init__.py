@@ -1,11 +1,3 @@
-from .base_parser import DynamoDBBaseParser
-from .java_parser import JavaDynamoDBParser
-from .python_parser import PythonDynamoDBParser
-from .typescript_parser import TypeScriptDynamoDBParser
+from .parser import DynamoDBParser
 
-__all__ = [
-    'DynamoDBBaseParser',
-    'JavaDynamoDBParser',
-    'PythonDynamoDBParser',
-    'TypeScriptDynamoDBParser'
-] 
+__all__ = ['DynamoDBParser'] 

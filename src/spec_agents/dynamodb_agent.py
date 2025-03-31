@@ -1,245 +1,151 @@
 import os
 from typing import List, Any, Dict, Optional
-from specs.dynamodb_spec import DynamoDBTableSpec
-from specs.flow_canvas_spec import ProgrammingLanguage
-from .base_agent import BaseSpecAgent, GenerationFeedback, AgentStep, AgentObservation
+from src.specs.dynamodb_spec import DynamoDBTableSpec
+from src.specs.flow_canvas_spec import ProgrammingLanguage
+from .base_agent import BaseSpecAgent, CodeFeedback, FeedbackType, AgentStep
 from .prompts.formatted_prompts.dynamodb import (
     JavaDynamoDBFormatter,
     PythonDynamoDBFormatter,
     TypeScriptDynamoDBFormatter
 )
-from .parsers.dynamodb_parser import (
-    JavaDynamoDBParser,
-    PythonDynamoDBParser,
-    TypeScriptDynamoDBParser
-)
+from .parsers.dynamodb_parser import DynamoDBParser
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DynamoDBAgent(BaseSpecAgent):
     def __init__(
         self,
         inference_client,
         max_retries: int = 3,
-        retry_delay: float = 1.0,
-        observation_callback: Optional[callable] = None
+        retry_delay: float = 1.0
     ):
-        super().__init__(inference_client, max_retries, retry_delay, observation_callback)
-        self.template_dir = os.path.join(
-            os.path.dirname(__file__),
-            'prompts',
-            'prompt_templates',
-            'dynamodb'
-        )
-        self.formatted_prompt_dir = os.path.join(
-            os.path.dirname(__file__),
-            'prompts',
-            'formatted_prompts',
-            'dynamodb'
-        )
+        super().__init__(inference_client, max_retries, retry_delay)
         
-        # Map programming languages to their formatters and parsers
+        # Initialize formatters and parser
         self.formatters = {
-            ProgrammingLanguage.JAVA: JavaDynamoDBFormatter,
-            ProgrammingLanguage.PYTHON: PythonDynamoDBFormatter,
-            ProgrammingLanguage.TYPESCRIPT: TypeScriptDynamoDBFormatter
+            ProgrammingLanguage.JAVA: JavaDynamoDBFormatter(),
+            ProgrammingLanguage.PYTHON: PythonDynamoDBFormatter(),
+            ProgrammingLanguage.TYPESCRIPT: TypeScriptDynamoDBFormatter()
         }
+        self.parser = DynamoDBParser()
         
-        self.parsers = {
-            ProgrammingLanguage.JAVA: JavaDynamoDBParser(),
-            ProgrammingLanguage.PYTHON: PythonDynamoDBParser(),
-            ProgrammingLanguage.TYPESCRIPT: TypeScriptDynamoDBParser()
-        }
-        
-        # Store current template for retries
-        self.current_template = None
-        self.current_formatted_data = None
+        # Store current state
+        self.current_spec = None
         self.current_programming_language = None
         
-    def generate_code(self, spec: DynamoDBTableSpec, input_specs: List[Any], programming_language: ProgrammingLanguage) -> str:
-        """
-        Generate DynamoDB table code based on the spec and input specs.
+    def _create_prompt_data(self, spec: DynamoDBTableSpec) -> Dict[str, Any]:
+        """Create prompt data dictionary from spec."""
+        return {
+            "name": spec.name,
+            "hash_key": spec.hash_key,
+            "range_key": spec.range_key,
+            "attributes": spec.attributes,
+            "feedback_history": self.feedback_history
+        }
         
-        Args:
-            spec: The DynamoDB table spec
-            input_specs: List of specs from input nodes (not used for DynamoDB)
-            programming_language: The programming language to generate code in
+    def _add_feedback_for_error(self, error_message: str, retry_count: int) -> None:
+        """Add feedback to history based on error message."""
+        feedback_list = []
+        
+        # Check for missing imports
+        if "No DynamoDB imports found" in error_message:
+            feedback_list.append(CodeFeedback(
+                feedback_type=FeedbackType.MISSING_IMPORT,
+                message="Missing DynamoDB imports",
+                details={"required_imports": ["DynamoDB", "DynamoDBClient"]}
+            ))
             
-        Returns:
-            str: Generated code
-        """
+        # Check for missing SDK patterns
+        if "No AWS SDK" in error_message:
+            feedback_list.append(CodeFeedback(
+                feedback_type=FeedbackType.MISSING_PATTERN,
+                message="Missing AWS SDK patterns",
+                details={"required_patterns": ["DynamoDBClient", "DynamoDBDocumentClient"]}
+            ))
+        elif "No boto3 patterns" in error_message:
+            feedback_list.append(CodeFeedback(
+                feedback_type=FeedbackType.MISSING_PATTERN,
+                message="Missing boto3 patterns",
+                details={"required_patterns": ["boto3.client('dynamodb')", "boto3.resource('dynamodb')"]}
+            ))
+            
+        # Check for validation errors
+        if "not found in code" in error_message:
+            feedback_list.append(CodeFeedback(
+                feedback_type=FeedbackType.VALIDATION_ERROR,
+                message=error_message
+            ))
+            
+        # Add general error if no specific feedback was created
+        if not feedback_list:
+            feedback_list.append(CodeFeedback(
+                feedback_type=FeedbackType.ERROR,
+                message=error_message
+            ))
+            
+        # Store feedback in history
+        self._store_feedback(retry_count, feedback_list)
+        
+    async def generate_code(
+        self, 
+        spec: DynamoDBTableSpec, 
+        input_specs: List[Any], 
+        programming_language: ProgrammingLanguage,
+        retry_count: int = 0
+    ) -> str:
+        """Generate DynamoDB table code based on the spec."""
+        # Store current state
+        self.current_spec = spec
         self.current_programming_language = programming_language
         
-        # Get language-specific template path and formatter
-        template_path = os.path.join(self.template_dir, f"{programming_language.value}.txt")
+        # Get language-specific formatter
         formatter = self.formatters[programming_language]
         
-        self._observe(AgentStep.LOAD_TEMPLATE, {
-            "template_path": template_path,
-            "programming_language": programming_language.value,
-            "table_name": spec.table_name
+        # Create and format prompt
+        prompt_data = self._create_prompt_data(spec)
+        prompt = formatter.format_prompt(**prompt_data)
+        
+        # Log prompt generation
+        self._log_step(AgentStep.FORMAT_PROMPT, {
+            "table_name": spec.name,
+            "primary_key": spec.hash_key,
+            "sort_key": spec.range_key
         })
         
-        # Load and format the prompt template
-        self.current_template = self._load_prompt_template(template_path)
-        self.current_formatted_data = formatter.format_prompt(spec)
-        
-        self._observe(AgentStep.FORMAT_PROMPT, {
-            "template_length": len(self.current_template),
-            "formatted_data_keys": list(self.current_formatted_data.keys()),
-            "table_name": spec.table_name,
-            "primary_key": spec.primary_key
-        })
-        
-        prompt = self._format_prompt(self.current_template, **self.current_formatted_data)
-        
-        # Create formatted prompts directory if it doesn't exist
-        os.makedirs(self.formatted_prompt_dir, exist_ok=True)
-        
-        # Save the formatted prompt
-        formatted_prompt_path = os.path.join(
-            self.formatted_prompt_dir,
-            f"{programming_language.value}_prompt.txt"
-        )
-        self._save_formatted_prompt(prompt, formatted_prompt_path)
-        
-        # Get response from LLM
-        self._observe(AgentStep.GENERATE_CODE, {
+        # Generate code using LLM
+        response = await self.inference_client.generate(prompt)
+        self._log_step(AgentStep.GENERATE_CODE, {
             "prompt_length": len(prompt),
-            "table_name": spec.table_name
+            "table_name": spec.name
         })
-        response = self.inference_client.generate(prompt)
         
         # Parse and return the code
-        return self.parse_response(response, spec.table_name, spec.primary_key, programming_language)
+        return self.parse_response(response, programming_language, retry_count)
         
-    def parse_response(self, response: str, table_name: str, primary_key: str, programming_language: ProgrammingLanguage) -> str:
-        """
-        Parse the LLM response to extract the generated code.
-        
-        Args:
-            response: Raw response from the LLM
-            table_name: The DynamoDB table name
-            primary_key: The primary key name
-            programming_language: The programming language of the generated code
-            
-        Returns:
-            str: Parsed code
-            
-        Raises:
-            ValueError: If response parsing fails
-        """
-        self._observe(AgentStep.PARSE_RESPONSE, {
-            "response_length": len(response),
-            "table_name": table_name,
-            "primary_key": primary_key,
-            "programming_language": programming_language.value
-        })
-        
-        parser = self.parsers[programming_language]
+    def parse_response(self, response: str, programming_language: ProgrammingLanguage, retry_count: int) -> str:
+        """Parse the LLM response to extract the generated code."""
         try:
-            result = parser.parse(response, table_name, primary_key)
+            # Parse the response
+            result = self.parser.parse(response, programming_language.value)
             
-            self._observe(AgentStep.VALIDATE_CODE, {
+            # Log successful parsing
+            self._log_step(AgentStep.VALIDATE_CODE, {
                 "code_length": len(result.code),
-                "imports_count": len(result.imports),
-                "table_name": table_name
+                "imports_count": len(result.imports)
             })
             
             return result.code
+            
         except ValueError as e:
-            # Create feedback from the error
-            feedback = self._create_feedback_from_error(str(e))
-            self._observe(AgentStep.ERROR, {
+            # Add feedback to history based on error
+            self._add_feedback_for_error(str(e), retry_count)
+            
+            # Log error
+            self._log_step(AgentStep.ERROR, {
                 "error": str(e),
-                "feedback": str(feedback),
-                "table_name": table_name
+                "retry_count": retry_count
             }, str(e))
-            raise ValueError(f"Failed to parse DynamoDB code: {str(e)}", feedback)
             
-    def _create_feedback_from_error(self, error_message: str) -> GenerationFeedback:
-        """
-        Create feedback from an error message.
-        
-        Args:
-            error_message: The error message
-            
-        Returns:
-            GenerationFeedback: Feedback object
-        """
-        feedback = GenerationFeedback(error_message=error_message)
-        
-        # Extract missing imports
-        if "No DynamoDB imports found" in error_message:
-            feedback.missing_imports = ["DynamoDB", "DynamoDBClient"]
-            
-        # Extract missing patterns
-        if "No AWS SDK" in error_message:
-            feedback.missing_patterns = ["DynamoDBClient", "DynamoDBDocumentClient"]
-        elif "No boto3 patterns" in error_message:
-            feedback.missing_patterns = ["boto3.client('dynamodb')", "boto3.resource('dynamodb')"]
-            
-        # Extract validation errors
-        if "not found in code" in error_message:
-            feedback.validation_errors = [error_message]
-            
-        self._observe(AgentStep.RETRY, {
-            "error_message": error_message,
-            "feedback": str(feedback)
-        })
-            
-        return feedback
-        
-    def _update_prompt_with_feedback(self, feedback: GenerationFeedback) -> None:
-        """
-        Update the prompt template based on feedback.
-        
-        Args:
-            feedback: Feedback from previous generation attempt
-        """
-        if not self.current_template or not self.current_formatted_data:
-            return
-            
-        self._observe(AgentStep.RETRY, {
-            "feedback": str(feedback),
-            "current_template_length": len(self.current_template)
-        })
-            
-        # Add missing imports to the template
-        if feedback.missing_imports:
-            imports_section = "\n".join([
-                f"import {imp};" for imp in feedback.missing_imports
-            ])
-            self.current_formatted_data["imports"] = imports_section
-            
-        # Add missing patterns as examples
-        if feedback.missing_patterns:
-            patterns_section = "\n".join([
-                f"// Example: {pattern}" for pattern in feedback.missing_patterns
-            ])
-            self.current_formatted_data["examples"] = patterns_section
-            
-        # Add validation errors as requirements
-        if feedback.validation_errors:
-            requirements_section = "\n".join([
-                f"// Required: {error}" for error in feedback.validation_errors
-            ])
-            self.current_formatted_data["requirements"] = requirements_section
-            
-        self._observe(AgentStep.FORMAT_PROMPT, {
-            "updated_template_length": len(self.current_template),
-            "feedback_applied": True
-        })
-        
-    def _format_attributes(self, attributes: List[Any]) -> str:
-        """
-        Format the DynamoDB attributes for the prompt.
-        
-        Args:
-            attributes: List of DynamoDB attributes
-            
-        Returns:
-            str: Formatted attributes string
-        """
-        return "\n".join([
-            f"- {attr.name}: {attr.type}"
-            for attr in attributes
-        ]) 
+            # Raise error
+            raise ValueError(f"Failed to parse DynamoDB code: {str(e)}") 
