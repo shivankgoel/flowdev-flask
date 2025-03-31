@@ -1,0 +1,391 @@
+{
+    "canvasId": "canvas-1",
+    "nodes": [
+        {
+            "id": "dynamoDBTable-1",
+            "type": "dynamoDBTable",
+            "position": {
+                "x": -998.614728562304,
+                "y": 83.80558245157641
+            },
+            "data": {
+                "spec": {
+                    "name": "UsersTable",
+                    "attributes": [
+                        {
+                            "name": "userId",
+                            "type": "String"
+                        },
+                        {
+                            "name": "gameType",
+                            "type": "String"
+                        },
+                        {
+                            "name": "eloRating",
+                            "type": "Number"
+                        }
+                    ],
+                    "hash_key": "userId",
+                    "range_key": "gameType",
+                    "infra_spec": {
+                        "billing_mode": "PAY_PER_REQUEST",
+                        "encryption": false
+                    }
+                }
+            }
+        },
+        {
+            "id": "s3Bucket-2",
+            "type": "s3Bucket",
+            "position": {
+                "x": -1021.4113090556465,
+                "y": 469.90998041766113
+            },
+            "data": {
+                "spec": {
+                    "name": "UserProfileBucket",
+                    "file_path_prefix": "/userId",
+                    "description": "Describe the purpose of the bucket",
+                    "infra_spec": {
+                        "encryption": "AES256",
+                        "storage_class": "STANDARD",
+                        "versioning": false
+                    }
+                }
+            }
+        },
+        {
+            "id": "dataModel-3",
+            "type": "dataModel",
+            "position": {
+                "x": -1402.9495519097482,
+                "y": 872.8280564103758
+            },
+            "data": {
+                "spec": {
+                    "modelName": "GameRating",
+                    "attributes": [
+                        {
+                            "name": "gameType",
+                            "type": "string",
+                            "required": true
+                        },
+                        {
+                            "name": "eloRating",
+                            "type": "number",
+                            "required": true
+                        }
+                    ],
+                    "relationships": []
+                }
+            }
+        },
+        {
+            "id": "dataModel-4",
+            "type": "dataModel",
+            "position": {
+                "x": -976.2049049744205,
+                "y": 857.1465851798051
+            },
+            "data": {
+                "spec": {
+                    "modelName": "UserDetails",
+                    "attributes": [
+                        {
+                            "name": "userId",
+                            "type": "string",
+                            "required": true
+                        },
+                        {
+                            "name": "profilePic",
+                            "type": "string",
+                            "required": true
+                        },
+                        {
+                            "name": "gameRatings",
+                            "type": "Array[GameRating]",
+                            "required": false
+                        }
+                    ],
+                    "relationships": []
+                }
+            }
+        },
+        {
+            "id": "applicationLogic-5",
+            "type": "applicationLogic",
+            "position": {
+                "x": -322.0760423954148,
+                "y": -70.379319866039
+            },
+            "data": {
+                "spec": {
+                    "className": "AddUserDetails",
+                    "privateAttributes": [],
+                    "publicAttributes": [],
+                    "privateFunctions": [
+                        {
+                            "functionName": "uploadProfilePic",
+                            "description": "Uploads profile picture of a user",
+                            "inputs": [
+                                {
+                                    "name": "userId",
+                                    "type": "string"
+                                },
+                                {
+                                    "name": "profilePic",
+                                    "type": "object"
+                                }
+                            ],
+                            "outputs": [],
+                            "dependsOn": []
+                        },
+                        {
+                            "functionName": "addUserRating",
+                            "description": "Add user rating based on userId and gameType",
+                            "inputs": [
+                                {
+                                    "name": "userId",
+                                    "type": "string"
+                                },
+                                {
+                                    "name": "gameType",
+                                    "type": "string"
+                                },
+                                {
+                                    "name": "userRating",
+                                    "type": "number"
+                                }
+                            ],
+                            "outputs": [],
+                            "dependsOn": []
+                        }
+                    ],
+                    "publicFunctions": []
+                }
+            }
+        },
+        {
+            "id": "applicationLogic-6",
+            "type": "applicationLogic",
+            "position": {
+                "x": -298.43928290628475,
+                "y": 1082.7230187523444
+            },
+            "data": {
+                "spec": {
+                    "className": "GetUserDetails",
+                    "privateAttributes": [],
+                    "publicAttributes": [],
+                    "privateFunctions": [
+                        {
+                            "functionName": "getUserDetails",
+                            "description": "Get all details of a user",
+                            "inputs": [
+                                {
+                                    "name": "userId",
+                                    "type": "string"
+                                }
+                            ],
+                            "outputs": [
+                                {
+                                    "name": "userDetails",
+                                    "type": "UserDetails"
+                                }
+                            ],
+                            "dependsOn": []
+                        }
+                    ],
+                    "publicFunctions": []
+                }
+            }
+        },
+        {
+            "id": "apiEndpoint-8",
+            "type": "apiEndpoint",
+            "position": {
+                "x": 1256.7180715932,
+                "y": 155.18859503640684
+            },
+            "data": {
+                "spec": {
+                    "path": "/api/uploadPic",
+                    "method": "POST",
+                    "requiredQueryParams": [],
+                    "optionalQueryParams": [],
+                    "endpointType": "non-streaming",
+                    "description": "Endpoint to help upload profile pic, will take userId and picture in the body"
+                }
+            }
+        },
+        {
+            "id": "apiEndpoint-9",
+            "type": "apiEndpoint",
+            "position": {
+                "x": 1236.755459664891,
+                "y": 552.3523170841455
+            },
+            "data": {
+                "spec": {
+                    "path": "/api/addUserRating",
+                    "method": "POST",
+                    "requiredQueryParams": [],
+                    "optionalQueryParams": [],
+                    "endpointType": "non-streaming",
+                    "description": "Endpoint to add user rating for a user. Will take userId, gameType and userRating in body."
+                }
+            }
+        },
+        {
+            "id": "apiEndpoint-10",
+            "type": "apiEndpoint",
+            "position": {
+                "x": 1297.4467325772744,
+                "y": 944.7499033438381
+            },
+            "data": {
+                "spec": {
+                    "path": "/api/getUserDetails",
+                    "method": "GET",
+                    "requiredQueryParams": [
+                        "userId"
+                    ],
+                    "optionalQueryParams": [],
+                    "endpointType": "non-streaming",
+                    "description": "endpoint to get user details"
+                }
+            }
+        },
+        {
+            "id": "applicationOrchestrator-10",
+            "type": "applicationOrchestrator",
+            "position": {
+                "x": 195.45040717892323,
+                "y": 566.6939687684599
+            },
+            "data": {
+                "spec": {
+                    "className": "UserDetailsManager",
+                    "composedOf": [
+                        {
+                            "nodeId": "applicationLogic-5",
+                            "nodeType": "applicationLogic",
+                            "label": "AddUserDetails"
+                        },
+                        {
+                            "nodeId": "applicationLogic-6",
+                            "nodeType": "applicationLogic",
+                            "label": "GetUserDetails"
+                        }
+                    ],
+                    "description": "Should combine all the functions inside AdduserDetails and GetUserDetails into a single class making things simple for upstream classes"
+                }
+            }
+        }
+    ],
+    "edges": [
+        {
+            "id": "reactflow__edge-s3Bucket-2-applicationLogic-5",
+            "source": "s3Bucket-2",
+            "target": "applicationLogic-5",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-dynamoDBTable-1-applicationLogic-5",
+            "source": "dynamoDBTable-1",
+            "target": "applicationLogic-5",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-s3Bucket-2-applicationLogic-6",
+            "source": "s3Bucket-2",
+            "target": "applicationLogic-6",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-dynamoDBTable-1-applicationLogic-6",
+            "source": "dynamoDBTable-1",
+            "target": "applicationLogic-6",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-dataModel-4-applicationLogic-6",
+            "source": "dataModel-4",
+            "target": "applicationLogic-6",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-dataModel-3-dataModel-4",
+            "source": "dataModel-3",
+            "target": "dataModel-4",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-applicationLogic-5-applicationOrchestrator-10",
+            "source": "applicationLogic-5",
+            "target": "applicationOrchestrator-10",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-applicationLogic-6-applicationOrchestrator-10",
+            "source": "applicationLogic-6",
+            "target": "applicationOrchestrator-10",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-applicationOrchestrator-10-apiEndpoint-8",
+            "source": "applicationOrchestrator-10",
+            "target": "apiEndpoint-8",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-applicationOrchestrator-10-apiEndpoint-9",
+            "source": "applicationOrchestrator-10",
+            "target": "apiEndpoint-9",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        },
+        {
+            "id": "reactflow__edge-applicationOrchestrator-10-apiEndpoint-10",
+            "source": "applicationOrchestrator-10",
+            "target": "apiEndpoint-10",
+            "arrowHeadType": "arrowclosed",
+            "data": {
+                "label": ""
+            }
+        }
+    ],
+    "version": "1.0.0",
+    "createdAt": "2025-03-31T02:07:47.358Z",
+    "updatedAt": "2025-03-31T02:07:47.358Z",
+    "programmingLanguage": "java"
+} 
