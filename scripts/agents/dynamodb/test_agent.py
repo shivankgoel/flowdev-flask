@@ -19,6 +19,7 @@ from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
 from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec
 from src.spec_agents.dynamodb_agent import DynamoDBAgent
 from src.inference.openai_inference import OpenAIInference
+from src.inference.bedrock_inference import BedrockInference
 
 # Configure logging
 def setup_logging(verbose: bool = False):
@@ -182,7 +183,7 @@ async def main():
         logger.info(f"Created DynamoDB spec with primary key '{config.primary_key}'")
 
         # Initialize inference client and agent
-        inference_client = OpenAIInference()  # You'll need to implement this
+        inference_client = BedrockInference()  # You'll need to implement this
         agent = DynamoDBAgent(
             inference_client=inference_client,
             current_node=canvas_node,

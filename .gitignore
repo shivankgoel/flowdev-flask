@@ -77,6 +77,7 @@ dmypy.json
 .pytest_cache/
 
 # Generated code
+scripts/agents/dynamodb/generated/
 generated_code/
 output/
 dist/
