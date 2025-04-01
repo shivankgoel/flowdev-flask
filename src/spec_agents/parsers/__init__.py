@@ -1,22 +1,7 @@
-from .generated_code_parser import (
-    BaseCodeParser,
-    GeneratedCode,
-    JavaCodeParser,
-    PythonCodeParser
-)
-from .dynamodb_parser import (
-    DynamoDBParser
-)
+from .code_parser import CodeParser, GeneratedCode, ParseError
 
 __all__ = [
-    # Base classes
-    'BaseCodeParser',
+    'CodeParser',
     'GeneratedCode',
-    
-    # Generated code parsers
-    'JavaCodeParser',
-    'PythonCodeParser',
-    
-    # DynamoDB parsers
-    'DynamoDBParser'
+    'ParseError'
 ] 

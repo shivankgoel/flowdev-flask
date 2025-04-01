@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 import logging
 import asyncio
+from .parsers import CodeParser
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +59,7 @@ class BaseSpecAgent(ABC):
         self.retry_delay = retry_delay
         self.logger = logging.getLogger(self.__class__.__name__)
         self.feedback_history: Dict[int, List[CodeFeedback]] = {}
+        self.parser = CodeParser()
         
     def _log_step(self, step: AgentStep, details: Dict[str, Any], error: Optional[str] = None) -> None:
         """Log an agent step with details."""
@@ -89,10 +91,29 @@ class BaseSpecAgent(ABC):
         """Generate code based on the input specs."""
         pass
     
-    @abstractmethod
     def parse_response(self, response: str, retry_count: int) -> str:
         """Parse the LLM response to extract the generated code."""
-        pass
+        try:
+            # Parse the response
+            result = self.parser.parse(response, self.programming_language.value)
+            
+            # Log successful parsing
+            self._log_step(AgentStep.PARSE_RESPONSE, {
+                "code_length": len(result.code),
+                "imports_count": len(result.imports)
+            })
+            
+            return result.code
+            
+        except Exception as e:
+            # Log error
+            self._log_step(AgentStep.ERROR, {
+                "error": str(e),
+                "retry_count": retry_count
+            }, str(e))
+            
+            # Raise error
+            raise ValueError(f"Failed to parse code: {str(e)}")
     
     async def generate_with_retry(
         self,

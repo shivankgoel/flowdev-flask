@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 import asyncio
 from pprint import pprint
+from datetime import datetime
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -113,6 +114,39 @@ def parse_attributes(attributes_str: str) -> List[DynamoDBAttribute]:
             sys.exit(1)
     return attributes
 
+def save_code_to_file(code: str, table_name: str, language: str) -> str:
+    """
+    Save generated code to a file in the output directory.
+    
+    Args:
+        code: Generated code string
+        table_name: Name of the DynamoDB table
+        language: Programming language extension
+        
+    Returns:
+        str: Path to the saved file
+    """
+    # Create output directory if it doesn't exist
+    output_dir = os.path.join(os.path.dirname(__file__), 'generated')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Create filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    extension = {
+        'java': '.java',
+        'python': '.py',
+        'typescript': '.ts'
+    }.get(language, '.txt')
+    
+    filename = f"{table_name}_{timestamp}{extension}"
+    filepath = os.path.join(output_dir, filename)
+    
+    # Save code to file
+    with open(filepath, 'w') as f:
+        f.write(code)
+        
+    return filepath
+
 async def main():
     parser = argparse.ArgumentParser(description='Test DynamoDB Agent')
     parser.add_argument('--table-name', required=True, help='Name of the DynamoDB table')
@@ -161,13 +195,21 @@ async def main():
         logger.info(f"Generating DynamoDB code in {config.programming_language.value}")
         code = await agent.generate_code()
         
-        # Print generated code
+        # Save code to file
+        filepath = save_code_to_file(
+            code=code,
+            table_name=config.table_name,
+            language=config.programming_language.value
+        )
+        
+        # Print generated code and file location
         print("\nGenerated Code:")
         print("-" * 80)
         pprint(code)
         print("-" * 80)
+        print(f"\nCode saved to: {filepath}")
 
-        logger.info("Code generation completed successfully")
+        logger.info(f"Code generation completed successfully and saved to {filepath}")
         return 0
 
     except Exception as e:
