@@ -56,11 +56,9 @@ class DynamoDBAgent:
     ) -> CodingAgentResponse:
         """Generate DynamoDB table code."""
         try:
-            spec = self._get_table_spec()
-            
             # Format prompt
             prompt = self.formatter.format_prompt(
-                spec=spec,
+                spec=self._get_table_spec(),  # Only needed for type checking
                 language=self.canvas.programming_language.value,
                 current_node_id=self.current_node_id,
                 canvas=self.canvas,
@@ -68,11 +66,11 @@ class DynamoDBAgent:
                 instructions=instructions,
                 previous_code=previous_code
             )
-            self._log_step(AgentStep.FORMAT_PROMPT, {"table_name": spec.name})
+            self._log_step(AgentStep.FORMAT_PROMPT, {"table_name": self._get_table_spec().name})
 
             # Generate code
             response = await self.inference_client.generate(prompt)
-            self._log_step(AgentStep.GENERATE, {"table_name": spec.name})
+            self._log_step(AgentStep.GENERATE, {"table_name": self._get_table_spec().name})
 
             # Handle different response types
             if response.error:

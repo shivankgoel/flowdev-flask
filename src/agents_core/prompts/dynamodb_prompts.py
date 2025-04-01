@@ -2,15 +2,7 @@ from .common_prompts import COMMON_CODE_GENERATION_INSTRUCTIONS
 
 PYTHON_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate a DynamoDB table dao in Python using boto3. The table has the following specifications:
-Table Name: {{name}}
-Hash Key: {{hash_key}}
-{{range_key_section}}
-
-Attributes:
-{{attributes_section}}
-
-{{infra_section}}
+Generate a DynamoDB table dao in Python using boto3.
 
 Instructions:
 1. Use boto3 for AWS DynamoDB
@@ -28,15 +20,7 @@ Instructions:
 
 JAVA_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate a DynamoDB table dao layer in Java using AWS SDK v2. The table has the following specifications:
-Table Name: {{name}}
-Hash Key: {{hash_key}}
-{{range_key_section}}
-
-Attributes:
-{{attributes_section}}
-
-{{infra_section}}
+Generate a DynamoDB table dao layer in Java using AWS SDK v2.
 
 Instructions:
 1. Use AWS SDK v2 for DynamoDB
@@ -54,15 +38,7 @@ Instructions:
 
 TYPESCRIPT_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate a DynamoDB table dao in TypeScript using AWS SDK v3. The table has the following specifications:
-Table Name: {{name}}
-Hash Key: {{hash_key}}
-{{range_key_section}}
-
-Attributes:
-{{attributes_section}}
-
-{{infra_section}}
+Generate a DynamoDB table dao in TypeScript using AWS SDK v3.
 
 Instructions:
 1. Use AWS SDK v3 for DynamoDB

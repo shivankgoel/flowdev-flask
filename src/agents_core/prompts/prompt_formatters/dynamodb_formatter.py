@@ -36,28 +36,8 @@ class DynamoDBPromptFormatter:
         # Format the complete canvas definition
         canvas_definition = CanvasToPrompt.format(canvas)
         
-        # Format range key section
-        range_key_section = f"Range Key: {spec.range_key}" if spec.range_key else ""
-        
-        # Format attributes section
-        attributes_section = "\n".join(f"- {attr.name}: {attr.type}" for attr in spec.attributes)
-        
-        # Format infrastructure section
-        infra_section = ""
-        if spec.infra_spec:
-            infra_section = f"""
-Infrastructure Configuration:
-- Billing Mode: {spec.infra_spec.billing_mode.value}
-- Encryption: {'Enabled' if spec.infra_spec.encryption else 'Disabled'}
-"""
-        
         # Format the prompt with all sections
         return prompt_template.format(
-            name=spec.name,
-            hash_key=spec.hash_key,
-            range_key_section=range_key_section,
-            attributes_section=attributes_section,
-            infra_section=infra_section,
             current_node_id=current_node_id,
             instruction_source=instruction_source,
             instructions=instructions,
