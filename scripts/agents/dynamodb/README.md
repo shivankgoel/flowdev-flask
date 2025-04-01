@@ -34,6 +34,57 @@ This script allows you to test the DynamoDB code generation agent through the te
     --retry-delay 2.0
 ```
 
+## Test Cases
+
+The script supports various test cases for different DynamoDB table configurations. Here are some example test cases you can use:
+
+### 1. Simple Table (Hash Key Only)
+```bash
+./test_agent.py \
+    --table-name "Users" \
+    --primary-key "userId" \
+    --attributes "userId:String,name:String,age:Number,isActive:Boolean" \
+    --language python
+```
+
+### 2. Table with Range Key
+```bash
+./test_agent.py \
+    --table-name "UserActivity" \
+    --primary-key "userId" \
+    --range-key "timestamp" \
+    --attributes "userId:String,timestamp:Number,action:String,data:String" \
+    --language typescript
+```
+
+### 3. Complex Table with Various Types
+```bash
+./test_agent.py \
+    --table-name "Orders" \
+    --primary-key "orderId" \
+    --range-key "customerId" \
+    --attributes "orderId:String,customerId:String,items:List,total:Number,status:String,metadata:Map" \
+    --language java
+```
+
+### 4. Table with Set Types
+```bash
+./test_agent.py \
+    --table-name "Products" \
+    --primary-key "productId" \
+    --attributes "productId:String,name:String,price:Number,categories:StringSet,images:BinarySet" \
+    --language python
+```
+
+### 5. Table with Binary Data
+```bash
+./test_agent.py \
+    --table-name "Documents" \
+    --primary-key "docId" \
+    --attributes "docId:String,content:Binary,type:String,size:Number" \
+    --language typescript
+```
+
 ## Command Line Arguments
 
 | Argument | Required | Default | Description |
@@ -45,6 +96,7 @@ This script allows you to test the DynamoDB code generation agent through the te
 | `--max-retries` | No | 3 | Maximum number of retries |
 | `--retry-delay` | No | 1.0 | Delay between retries in seconds |
 | `--verbose` | No | False | Enable detailed logging output |
+| `--range-key` | No | - | Name of the range key |
 
 ## Logging
 

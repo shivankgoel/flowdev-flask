@@ -4,7 +4,7 @@ import os
 import sys
 import argparse
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
 import asyncio
@@ -17,7 +17,7 @@ sys.path.append(project_root)
 
 from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
 from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec
-from src.spec_agents.dynamodb_agent import DynamoDBAgent
+from src.agents_core.agents.dynamodb_agent import DynamoDBAgent
 from src.inference.openai_inference import OpenAIInference
 from src.inference.bedrock_inference import BedrockInference
 
@@ -77,8 +77,6 @@ class TestConfig:
     range_key: str
     attributes: List[DynamoDBAttribute]
     programming_language: ProgrammingLanguage
-    max_retries: int = 3
-    retry_delay: float = 1.0
 
 def create_dynamodb_spec(config: TestConfig) -> DynamoDBTableSpec:
     """Create a DynamoDBTableSpec from the test configuration."""
@@ -148,48 +146,24 @@ def save_code_to_file(code: str, table_name: str, language: str) -> str:
         
     return filepath
 
-async def main():
-    parser = argparse.ArgumentParser(description='Test DynamoDB Agent')
-    parser.add_argument('--table-name', required=True, help='Name of the DynamoDB table')
-    parser.add_argument('--primary-key', required=True, help='Name of the primary key')
-    parser.add_argument('--attributes', required=True, help='Comma-separated list of attributes in format "name:type"')
-    parser.add_argument('--language', required=True, choices=['java', 'python', 'typescript'], help='Programming language')
-    parser.add_argument('--max-retries', type=int, default=3, help='Maximum number of retries')
-    parser.add_argument('--retry-delay', type=float, default=1.0, help='Delay between retries in seconds')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
-    parser.add_argument('--range-key', required=False, help='Name of the range key')
-
-    args = parser.parse_args()
-
-    # Setup logging
-    logger = setup_logging(args.verbose)
-    logger.info("Starting DynamoDB agent test")
-
+async def run_test_case(
+    config: TestConfig,
+    inference_client: Any,
+    logger: logging.Logger,
+    verbose: bool = False
+) -> bool:
+    """Run a single test case with the given configuration."""
     try:
-        # Create test configuration
-        config = TestConfig(
-            table_name=args.table_name,
-            primary_key=args.primary_key,
-            range_key=args.range_key,
-            attributes=parse_attributes(args.attributes),
-            programming_language=ProgrammingLanguage(args.language),
-            max_retries=args.max_retries,
-            retry_delay=args.retry_delay
-        )
-
         # Create DynamoDB spec and canvas node
         spec = create_dynamodb_spec(config)
         canvas_node = create_canvas_node(spec)
         logger.info(f"Created DynamoDB spec with primary key '{config.primary_key}'")
 
-        # Initialize inference client and agent
-        inference_client = BedrockInference()  # You'll need to implement this
+        # Initialize agent
         agent = DynamoDBAgent(
             inference_client=inference_client,
             current_node=canvas_node,
-            programming_language=config.programming_language,
-            max_retries=config.max_retries,
-            retry_delay=config.retry_delay
+            programming_language=config.programming_language
         )
 
         # Generate code
@@ -204,17 +178,54 @@ async def main():
         )
         
         # Print generated code and file location
-        print("\nGenerated Code:")
-        print("-" * 80)
-        pprint(code)
-        print("-" * 80)
+        if verbose:
+            print("\nGenerated Code:")
+            print("-" * 80)
+            pprint(code)
+            print("-" * 80)
         print(f"\nCode saved to: {filepath}")
 
         logger.info(f"Code generation completed successfully and saved to {filepath}")
-        return 0
+        return True
 
     except Exception as e:
         logger.error(f"Error during code generation: {str(e)}", exc_info=True)
+        return False
+
+async def main():
+    parser = argparse.ArgumentParser(description='Test DynamoDB Agent')
+    parser.add_argument('--table-name', required=True, help='Name of the DynamoDB table')
+    parser.add_argument('--primary-key', required=True, help='Name of the primary key')
+    parser.add_argument('--attributes', required=True, help='Comma-separated list of attributes in format "name:type"')
+    parser.add_argument('--language', required=True, choices=['java', 'python', 'typescript'], help='Programming language')
+    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--range-key', required=False, help='Name of the range key')
+
+    args = parser.parse_args()
+
+    # Setup logging
+    logger = setup_logging(args.verbose)
+    logger.info("Starting DynamoDB agent test")
+
+    try:
+        # Initialize inference client
+        inference_client = BedrockInference()
+
+        # Create test configuration
+        config = TestConfig(
+            table_name=args.table_name,
+            primary_key=args.primary_key,
+            range_key=args.range_key,
+            attributes=parse_attributes(args.attributes),
+            programming_language=ProgrammingLanguage(args.language)
+        )
+
+        # Run test case
+        success = await run_test_case(config, inference_client, logger, args.verbose)
+        return 0 if success else 1
+
+    except Exception as e:
+        logger.error(f"Error during test execution: {str(e)}", exc_info=True)
         return 1
 
 if __name__ == "__main__":
