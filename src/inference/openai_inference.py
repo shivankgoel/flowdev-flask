@@ -1,9 +1,10 @@
 import os
 import logging
-from typing import Dict, Any, Optional
+from typing import Optional, List, Dict, Any
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 from . import BaseLLMInference
+from .models.inference_models import InferenceResponse, ToolCall
 
 # Load environment variables
 load_dotenv()
@@ -11,40 +12,37 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 class OpenAIInference(BaseLLMInference):
-    def __init__(self, model: str = "gpt-4o-mini"):
-        self.client = AsyncOpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        self.model = model
-        self.system_prompt = "You are an expert code generator. Generate clean, well-documented code following best practices."
+    def __init__(self):
+        """Initialize OpenAI client."""
+        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.model = "gpt-4-turbo-preview"
 
-    async def generate(self, prompt: str, **kwargs) -> str:
-        """Generate text using OpenAI's API"""
+    async def generate(self, prompt: str) -> InferenceResponse:
+        """Generate text using OpenAI."""
         try:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
+                    {"role": "system", "content": "You are an expert code generator. Generate clean, well-documented code following best practices."},
                     {"role": "user", "content": prompt}
                 ],
-                max_completion_tokens=kwargs.get("max_tokens", 2000)
+                temperature=0.7,
+                max_tokens=4096,
+                stop=["</generated_code>"]
             )
-            answer = response.choices[0].message.content
-            
-            # Extract JSON content from markdown code blocks if present
-            if "```json" in answer:
-                start = answer.find("```json") + 7
-                end = answer.find("```", start)
-                if end != -1:
-                    answer = answer[start:end].strip()
-            
-            logger.debug("OpenAI answer: %s", answer)
-            return answer
+
+            content = response.choices[0].message.content
+            return InferenceResponse(text_response=content)
+
         except Exception as e:
-            raise Exception(f"Error generating code with OpenAI: {str(e)}")
+            logger.error(f"Error generating text with OpenAI: {str(e)}", exc_info=True)
+            return InferenceResponse(error=str(e))
 
     def get_model_info(self) -> Dict[str, Any]:
-        """Get information about the current model"""
+        """Get information about the current model."""
         return {
-            "provider": "OpenAI",
+            "provider": "openai",
             "model": self.model,
-            "capabilities": ["code generation", "text completion"]
+            "max_tokens": 4096,
+            "temperature": 0.7
         } 

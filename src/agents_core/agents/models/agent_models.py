@@ -1,4 +1,6 @@
 from enum import Enum
+from dataclasses import dataclass
+from typing import Optional
 
 class AgentStep(Enum):
     """Steps in the code generation process."""
@@ -6,3 +8,10 @@ class AgentStep(Enum):
     GENERATE = "generate"
     PARSE = "parse"
     ERROR = "error"
+
+
+@dataclass
+class CodingAgentResponse:
+    """Response from the agent."""
+    code: str
+    error: Optional[str] = None
