@@ -17,7 +17,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(o
 sys.path.append(project_root)
 
 from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
-from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec, CanvasDefinitionSpec
+from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec, CanvasDefinition
 from src.agents_core.agents.dynamodb_agent import DynamoDBAgent
 from src.agents_core.prompts.utils.spec_formatters import CanvasToPrompt, NodeSpecToPrompt, DynamoDBTableToPrompt
 from src.inference.openai_inference import OpenAIInference
@@ -98,9 +98,9 @@ def create_canvas_node(spec: DynamoDBTableSpec) -> CanvasNodeSpec:
         data=NodeDataSpec(spec=spec)
     )
 
-def create_canvas(node: CanvasNodeSpec, programming_language: ProgrammingLanguage) -> CanvasDefinitionSpec:
+def create_canvas(node: CanvasNodeSpec, programming_language: ProgrammingLanguage) -> CanvasDefinition:
     """Create a CanvasDefinitionSpec for testing."""
-    return CanvasDefinitionSpec(
+    return CanvasDefinition(
         nodes={node.id: node},
         edges=[],
         programming_language=programming_language,

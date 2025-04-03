@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any
-from src.specs.flow_canvas_spec import CanvasDefinitionSpec
+from src.specs.flow_canvas_spec import CanvasDefinition
 from src.agents_core.storage.s3_dao import S3DAO
 from src.agents_core.tools.common.tool_model import ToolDefinition, ToolParameter, ToolParameterType, ToolResponse
 
@@ -11,7 +11,7 @@ class FetchCodeTool:
     
     def __init__(
         self,
-        canvas: CanvasDefinitionSpec,
+        canvas: CanvasDefinition,
         current_node_id: str,
         s3_dao: S3DAO
     ):

@@ -77,8 +77,7 @@ class ControlPlaneTester:
         
         print("\n1. Creating canvas...")
         canvas_data = {
-            "nodes": [],
-            "edges": []
+            "canvas_name": "Test Canvas"
         }
         response = self._make_request("POST", f"/canvas/{self.customer_id}", canvas_data)
         self.canvas_id = response["canvas_id"]
@@ -88,13 +87,12 @@ class ControlPlaneTester:
         response = self._make_request("GET", f"/canvas/{self.customer_id}/{self.canvas_id}/{self.canvas_version}")
         print("Canvas retrieved successfully")
 
-        print("\n3. Updating canvas...")
+        print("\n3. Updating canvas name...")
         update_data = {
-            "nodes": [{"id": "test-node", "type": "test", "position": {"x": 0, "y": 0}}],
-            "edges": []
+            "canvas_name": "Updated Test Canvas"
         }
         response = self._make_request("PUT", f"/canvas/{self.customer_id}/{self.canvas_id}/{self.canvas_version}", update_data)
-        print("Canvas updated successfully")
+        print("Canvas name updated successfully")
 
         print("\n4. Listing canvas versions...")
         response = self._make_request("GET", f"/canvas/{self.customer_id}/{self.canvas_id}/versions")

@@ -2,11 +2,11 @@ from typing import Dict, Any
 from .base_parser import BaseParser
 
 from specs.flow_canvas_spec import (
-    CanvasDefinitionSpec,
-    CanvasNodeSpec,
+    CanvasDefinition,
+    CanvasNodeDefinition,
     CanvasPosition,
     NodeDataSpec,
-    CanvasEdgeSpec,
+    CanvasEdgeDefinition,
     EdgeDataSpec,
     ProgrammingLanguage
 )
@@ -18,7 +18,7 @@ from .node_parsers.application_logic_parser import ApplicationLogicParser
 from .node_parsers.application_orchestrator_parser import ApplicationOrchestratorParser
 from .node_parsers.api_endpoint_parser import ApiEndpointParser
 
-class CanvasParser(BaseParser[CanvasDefinitionSpec]):
+class CanvasParser(BaseParser[CanvasDefinition]):
     @staticmethod
     def parse_node_data(node_data: Dict[str, Any], node_type: str) -> NodeDataSpec:
         spec_data = node_data["spec"]
@@ -42,9 +42,9 @@ class CanvasParser(BaseParser[CanvasDefinitionSpec]):
         return NodeDataSpec(spec=spec)
 
     @staticmethod
-    def parse_canvas_definition(json_data: Dict[str, Any]) -> CanvasDefinitionSpec:
+    def parse_canvas_definition(json_data: Dict[str, Any]) -> CanvasDefinition:
         nodes = [
-            CanvasNodeSpec(
+            CanvasNodeDefinition(
                 id=node["id"],
                 type=node["type"],
                 position=CanvasPosition(**node["position"]),
@@ -54,7 +54,7 @@ class CanvasParser(BaseParser[CanvasDefinitionSpec]):
         ]
         
         edges = [
-            CanvasEdgeSpec(
+            CanvasEdgeDefinition(
                 id=edge["id"],
                 source=edge["source"],
                 target=edge["target"],
@@ -64,7 +64,7 @@ class CanvasParser(BaseParser[CanvasDefinitionSpec]):
             for edge in json_data["edges"]
         ]
         
-        return CanvasDefinitionSpec(
+        return CanvasDefinition(
             canvas_id=json_data["canvasId"],
             nodes=nodes,
             edges=edges,

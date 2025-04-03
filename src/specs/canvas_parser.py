@@ -3,12 +3,13 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from .flow_canvas_spec import (
-    CanvasDefinitionSpec,
+    CanvasDefinition,
     CanvasNodeSpec,
     CanvasPosition,
     CanvasEdgeSpec,
     EdgeDataSpec,
-    ProgrammingLanguage
+    ProgrammingLanguage,
+    EdgeType
 )
 from .dynamodb_spec import (
     DynamoDBTableSpec,
@@ -186,7 +187,7 @@ class CanvasParser:
             raise ValueError(f"Unknown node type: {node_type}")
 
     @staticmethod
-    def parse_canvas_definition(json_data: Dict[str, Any]) -> CanvasDefinitionSpec:
+    def parse_canvas_definition(json_data: Dict[str, Any]) -> CanvasDefinition:
         nodes = [
             CanvasNodeSpec(
                 id=node["id"],
@@ -208,7 +209,7 @@ class CanvasParser:
             for edge in json_data["edges"]
         ]
         
-        return CanvasDefinitionSpec(
+        return CanvasDefinition(
             canvas_id=json_data["canvasId"],
             nodes=nodes,
             edges=edges,

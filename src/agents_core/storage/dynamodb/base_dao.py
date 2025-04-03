@@ -31,6 +31,7 @@ class BaseDynamoDBDAO(Generic[T]):
         client_factory = DynamoDBClientFactory(config)
         self.manager = DynamoDBTableManager(client_factory)
         self.table = self.manager.resource.Table(table_name)
+        self.logger = logging.getLogger(__name__)
 
     def _serialize(self, obj: T) -> Dict[str, Any]:
         """Serialize a dataclass object to a dictionary."""
@@ -48,7 +49,7 @@ class BaseDynamoDBDAO(Generic[T]):
                 return None
             return response['Item']
         except Exception as e:
-            logger.error(f"Error getting item: {str(e)}")
+            self.logger.error(f"Error getting item: {str(e)}")
             raise DynamoDBDAOError(f"Failed to get item: {str(e)}")
 
     def _put_item(self, item: Dict[str, Any]) -> bool:
@@ -57,8 +58,17 @@ class BaseDynamoDBDAO(Generic[T]):
             self.table.put_item(Item=item)
             return True
         except Exception as e:
-            logger.error(f"Error putting item: {str(e)}")
+            self.logger.error(f"Error putting item: {str(e)}")
             raise DynamoDBDAOError(f"Failed to put item: {str(e)}")
+
+    def _delete_item(self, key: Dict[str, str]) -> bool:
+        """Delete an item from the table."""
+        try:
+            self.table.delete_item(Key=key)
+            return True
+        except Exception as e:
+            self.logger.error(f"Error deleting item: {str(e)}")
+            raise DynamoDBDAOError(f"Failed to delete item: {str(e)}")
 
     def _query_items(self, key_condition_expression: str, expression_attribute_values: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Query items from the table."""
@@ -69,5 +79,5 @@ class BaseDynamoDBDAO(Generic[T]):
             )
             return response.get('Items', [])
         except Exception as e:
-            logger.error(f"Error querying items: {str(e)}")
+            self.logger.error(f"Error querying items: {str(e)}")
             raise DynamoDBDAOError(f"Failed to query items: {str(e)}") 

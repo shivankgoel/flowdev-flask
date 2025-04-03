@@ -7,7 +7,6 @@ from src.agents_core.storage.coordinator.node_coordinator import NodeCoordinator
 from src.agents_core.storage.coordinator.edge_coordinator import EdgeCoordinator
 from src.agents_core.storage.coordinator.chat_thread_coordinator import ChatThreadCoordinator
 from src.specs.flow_canvas_spec import (
-    CanvasDefinitionSpec,
     CanvasNodeSpec,
     CanvasEdgeSpec,
     ChatThread,
@@ -17,6 +16,7 @@ from src.specs.flow_canvas_spec import (
     ChatMessageRole,
     ChatMessageSourceType
 )
+from src.agents_core.storage.dynamodb.canvas_dao import Canvas
 
 canvas_bp = Blueprint('canvas', __name__)
 canvas_coordinator = CanvasCoordinator()
@@ -30,21 +30,20 @@ def create_canvas(customer_id: str):
         data = request.get_json()
         canvas_id = str(uuid.uuid4())
         canvas_version = "draft"
+        timestamp = datetime.utcnow().isoformat()
         
-        # Initialize with empty lists for nodes and edges
-        canvas_spec = CanvasDefinitionSpec(
+        # Create canvas object
+        canvas = Canvas(
+            canvas_name=data.get('canvas_name', f"Canvas-{canvas_id[:8]}"),
             customer_id=customer_id,
             canvas_id=canvas_id,
             canvas_version=canvas_version,
-            nodes=[],  # Initialize with empty list
-            edges=[],  # Initialize with empty list
-            created_at=datetime.utcnow().isoformat(),
-            updated_at=datetime.utcnow().isoformat()
+            created_at=timestamp,
+            updated_at=timestamp
         )
         
-        print(f"Creating canvas with spec: {canvas_spec.to_dict()}")
-        success = canvas_coordinator.save_canvas(canvas_spec)
-        print(f"Canvas creation result: {success}")
+        # Save canvas
+        success = canvas_coordinator.save_canvas(canvas)
         
         if success:
             return jsonify({"canvas_id": canvas_id}), 201
@@ -71,9 +70,14 @@ def update_canvas(customer_id: str, canvas_id: str, canvas_version: str):
         return jsonify({"error": "Canvas not found"}), 404
     
     # Update canvas with new data
-    canvas.nodes = data.get('nodes', canvas.nodes)
-    canvas.edges = data.get('edges', canvas.edges)
-    canvas.updated_at = datetime.utcnow().isoformat()
+    canvas = Canvas(
+        canvas_name=data.get('canvas_name', canvas.canvas_name),
+        customer_id=customer_id,
+        canvas_id=canvas_id,
+        canvas_version=canvas_version,
+        created_at=canvas.created_at,
+        updated_at=datetime.utcnow().isoformat() 
+    )
     
     if canvas_coordinator.save_canvas(canvas):
         return jsonify({"message": "Canvas updated successfully"}), 200

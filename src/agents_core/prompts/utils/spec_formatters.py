@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Union
-from src.specs.flow_canvas_spec import CanvasDefinitionSpec, CanvasNodeSpec
+from src.specs.flow_canvas_spec import CanvasDefinition, CanvasNodeSpec
 from src.specs.dynamodb_spec import DynamoDBTableSpec
 from src.specs.s3_spec import S3BucketSpec
 from src.specs.data_model_spec import DataModelNodeSpec
@@ -11,7 +11,7 @@ class CanvasToPrompt:
     """Utility class to format CanvasDefinitionSpec into prompt text."""
     
     @staticmethod
-    def format(canvas: CanvasDefinitionSpec) -> str:
+    def format(canvas: CanvasDefinition) -> str:
         """Format canvas definition into a detailed prompt section."""
         sections = [
             f"Programming Language: {canvas.programming_language.value}",

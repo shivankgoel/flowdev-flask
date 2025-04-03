@@ -49,8 +49,15 @@ from .flow_canvas_spec import (
     CanvasNodeSpec,
     EdgeDataSpec,
     CanvasEdgeSpec,
+    MessageContentType,
+    MessageContent,
+    ChatMessageRole,
+    ChatMessageSourceType,
+    ChatMessage,
+    ChatThread,
+    CanvasDefinition,
     ProgrammingLanguage,
-    CanvasDefinitionSpec
+    EdgeType
 )
 
 from .canvas_parser import CanvasParser
@@ -102,7 +109,7 @@ __all__ = [
     'EdgeDataSpec',
     'CanvasEdgeSpec',
     'ProgrammingLanguage',
-    'CanvasDefinitionSpec',
+    'CanvasDefinition',
     
     # Canvas Parser
     'CanvasParser'

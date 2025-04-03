@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional
 from src.inference import BaseLLMInference
 from src.inference.models.inference_models import InferenceResponse, ToolCall
 from src.specs.dynamodb_spec import DynamoDBTableSpec
-from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, CanvasDefinitionSpec
+from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, CanvasDefinition
 from ..prompts.prompt_formatters.dynamodb_formatter import DynamoDBPromptFormatter
 from ..prompts.utils.spec_formatters import CanvasToPrompt, NodeSpecToPrompt, DynamoDBTableToPrompt
 from ..llm_response_parsers.dynamodb_parser import DynamoDBParser
@@ -19,7 +19,7 @@ class DynamoDBAgent:
         self,
         inference_client: BaseLLMInference,
         current_node_id: str,
-        canvas: CanvasDefinitionSpec,
+        canvas: CanvasDefinition,
         send_message_handler: callable
     ):
         self.inference_client = inference_client

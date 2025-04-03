@@ -96,7 +96,7 @@ class CanvasNodeSpec:
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class CanvasDefinitionSpec:
+class CanvasDefinition:
     customer_id: str
     canvas_id: str
     canvas_version: str

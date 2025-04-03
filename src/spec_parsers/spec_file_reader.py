@@ -4,11 +4,11 @@ from typing import Dict, Any
 from pathlib import Path
 
 from .canvas_parser import CanvasParser
-from specs.flow_canvas_spec import CanvasDefinitionSpec
+from specs.flow_canvas_spec import CanvasDefinition
 
 class SpecFileReader:
     @staticmethod
-    def read_spec_file(file_path: str) -> CanvasDefinitionSpec:
+    def read_spec_file(file_path: str) -> CanvasDefinition:
         """
         Read a spec file from disk and convert it to a CanvasDefinitionSpec.
         
@@ -31,7 +31,7 @@ class SpecFileReader:
         return CanvasParser.parse_canvas_definition(spec_data)
     
     @staticmethod
-    def read_spec_directory(directory_path: str) -> Dict[str, CanvasDefinitionSpec]:
+    def read_spec_directory(directory_path: str) -> Dict[str, CanvasDefinition]:
         """
         Read all spec files from a directory and convert them to CanvasDefinitionSpecs.
         

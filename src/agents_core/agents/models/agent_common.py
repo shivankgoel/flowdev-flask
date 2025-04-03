@@ -5,7 +5,7 @@ from datetime import datetime
 from src.inference import BaseLLMInference
 from src.inference.models.inference_models import InferenceResponse, ToolCall
 from src.agents_core.agents.models.agent_models import AgentStep, AgentResponse, AgentThoughts
-from src.specs.flow_canvas_spec import CanvasDefinitionSpec, ChatMessage, MessageContent, MessageContentType, ChatMessageRole
+from src.specs.flow_canvas_spec import CanvasDefinition, ChatMessage, MessageContent, MessageContentType, ChatMessageRole
 from src.agents_core.tools.common import FetchCodeTool
 from src.agents_core.storage.s3_dao import S3DAO
 
@@ -18,7 +18,7 @@ class AgentCommon:
         self,
         inference_client: BaseLLMInference,
         current_node_id: str,
-        canvas: CanvasDefinitionSpec
+        canvas: CanvasDefinition
     ):
         self.inference_client = inference_client
         self.current_node_id = current_node_id

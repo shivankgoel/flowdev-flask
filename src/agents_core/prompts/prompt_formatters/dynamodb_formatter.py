@@ -1,6 +1,6 @@
 from typing import Dict, Any
 from src.specs.dynamodb_spec import DynamoDBTableSpec
-from src.specs.flow_canvas_spec import CanvasDefinitionSpec
+from src.specs.flow_canvas_spec import CanvasDefinition
 from ..dynamodb_prompts import PROMPTS
 from ..utils.spec_formatters import CanvasToPrompt, NodeSpecToPrompt, DynamoDBTableToPrompt
 
@@ -12,7 +12,7 @@ class DynamoDBPromptFormatter:
         spec: DynamoDBTableSpec,
         language: str,
         current_node_id: str,
-        canvas: CanvasDefinitionSpec,
+        canvas: CanvasDefinition,
         instruction_source: str = "",
         instructions: str = "",
         previous_code: str = ""

@@ -4,7 +4,7 @@ from datetime import datetime
 from spec_parsers.spec_file_reader import SpecFileReader
 from spec_parsers.canvas_parser import CanvasParser
 from specs.flow_canvas_spec import (
-    CanvasDefinitionSpec,
+    CanvasDefinition,
     CanvasNodeSpec,
     CanvasPosition,
     NodeDataSpec,
@@ -55,7 +55,7 @@ class TestCanvasParser(unittest.TestCase):
 
     def test_parse_canvas_definition(self):
         # Verify the basic canvas properties
-        self.assertIsInstance(self.canvas_def, CanvasDefinitionSpec)
+        self.assertIsInstance(self.canvas_def, CanvasDefinition)
         self.assertEqual(self.canvas_def.canvas_id, "canvas-1")
         self.assertEqual(self.canvas_def.version, "1.0.0")
         self.assertEqual(self.canvas_def.programming_language, ProgrammingLanguage.JAVA)

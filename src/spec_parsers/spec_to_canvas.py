@@ -4,11 +4,11 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 
 from .canvas_parser import CanvasParser
-from specs.flow_canvas_spec import CanvasDefinitionSpec, ProgrammingLanguage
+from specs.flow_canvas_spec import CanvasDefinition, ProgrammingLanguage
 
 class SpecToCanvas:
     @staticmethod
-    def from_json_file(file_path: str) -> CanvasDefinitionSpec:
+    def from_json_file(file_path: str) -> CanvasDefinition:
         """
         Read a JSON spec file and convert it to a CanvasDefinitionSpec.
         
@@ -31,7 +31,7 @@ class SpecToCanvas:
         return CanvasParser.parse_canvas_definition(spec_data)
     
     @staticmethod
-    def from_json_string(json_str: str) -> CanvasDefinitionSpec:
+    def from_json_string(json_str: str) -> CanvasDefinition:
         """
         Convert a JSON string to a CanvasDefinitionSpec.
         
@@ -48,7 +48,7 @@ class SpecToCanvas:
         return CanvasParser.parse_canvas_definition(spec_data)
     
     @staticmethod
-    def from_dict(spec_dict: Dict[str, Any]) -> CanvasDefinitionSpec:
+    def from_dict(spec_dict: Dict[str, Any]) -> CanvasDefinition:
         """
         Convert a dictionary to a CanvasDefinitionSpec.
         
@@ -65,7 +65,7 @@ class SpecToCanvas:
         canvas_id: str,
         programming_language: ProgrammingLanguage = ProgrammingLanguage.JAVA,
         version: str = "1.0.0"
-    ) -> CanvasDefinitionSpec:
+    ) -> CanvasDefinition:
         """
         Create an empty canvas definition with basic metadata.
         
@@ -90,7 +90,7 @@ class SpecToCanvas:
         return CanvasParser.parse_canvas_definition(spec_dict)
     
     @staticmethod
-    def to_json(canvas_def: CanvasDefinitionSpec, indent: int = 2) -> str:
+    def to_json(canvas_def: CanvasDefinition, indent: int = 2) -> str:
         """
         Convert a CanvasDefinitionSpec to a JSON string.
         
@@ -138,7 +138,7 @@ class SpecToCanvas:
         return json.dumps(spec_dict, indent=indent)
     
     @staticmethod
-    def save_to_file(canvas_def: CanvasDefinitionSpec, file_path: str, indent: int = 2) -> None:
+    def save_to_file(canvas_def: CanvasDefinition, file_path: str, indent: int = 2) -> None:
         """
         Save a CanvasDefinitionSpec to a JSON file.
         
