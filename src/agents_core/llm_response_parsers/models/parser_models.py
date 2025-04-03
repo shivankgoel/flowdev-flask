@@ -1,7 +1,10 @@
 from dataclasses import dataclass
 
 @dataclass
-class ParsedCode:
+class ParsedResponse:
     """Container for parsed code."""
     code: str
-    language: str
+    code_language: str
+    response: str
+    thoughts: str
+    error: str

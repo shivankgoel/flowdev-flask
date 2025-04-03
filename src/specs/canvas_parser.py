@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -6,7 +6,6 @@ from .flow_canvas_spec import (
     CanvasDefinitionSpec,
     CanvasNodeSpec,
     CanvasPosition,
-    NodeDataSpec,
     CanvasEdgeSpec,
     EdgeDataSpec,
     ProgrammingLanguage
@@ -45,6 +44,7 @@ from .application_orchestrator_spec import (
     NodeType
 )
 
+@dataclass
 class CanvasParser:
     @staticmethod
     def parse_dynamodb_spec(spec_data: Dict[str, Any]) -> DynamoDBTableSpec:
@@ -159,26 +159,31 @@ class CanvasParser:
         )
 
     @staticmethod
-    def parse_node_data(node_data: Dict[str, Any]) -> NodeDataSpec:
-        spec_data = node_data["spec"]
-        node_type = node_data.get("type", "").lower()
+    def parse_node_data(node_data: Dict[str, Any]) -> Union[
+        DynamoDBTableSpec,
+        S3BucketSpec,
+        ApplicationLogicSpec,
+        DataModelNodeSpec,
+        ApiEndpointSpec,
+        ApplicationOrchestratorSpec
+    ]:
+        """Parse node data based on its type."""
+        node_type = node_data.get('type')
         
-        if node_type == "dynamodbtable":
-            spec = CanvasParser.parse_dynamodb_spec(spec_data)
-        elif node_type == "s3bucket":
-            spec = CanvasParser.parse_s3_spec(spec_data)
-        elif node_type == "datamodel":
-            spec = CanvasParser.parse_data_model_spec(spec_data)
-        elif node_type == "applicationlogic":
-            spec = CanvasParser.parse_application_logic_spec(spec_data)
-        elif node_type == "apiendpoint":
-            spec = CanvasParser.parse_api_endpoint_spec(spec_data)
-        elif node_type == "applicationorchestrator":
-            spec = CanvasParser.parse_application_orchestrator_spec(spec_data)
+        if node_type == 'dynamodb':
+            return CanvasParser.parse_dynamodb_spec(node_data)
+        elif node_type == 's3':
+            return CanvasParser.parse_s3_spec(node_data)
+        elif node_type == 'data_model':
+            return CanvasParser.parse_data_model_spec(node_data)
+        elif node_type == 'application_logic':
+            return CanvasParser.parse_application_logic_spec(node_data)
+        elif node_type == 'api_endpoint':
+            return CanvasParser.parse_api_endpoint_spec(node_data)
+        elif node_type == 'application_orchestrator':
+            return CanvasParser.parse_application_orchestrator_spec(node_data)
         else:
             raise ValueError(f"Unknown node type: {node_type}")
-            
-        return NodeDataSpec(spec=spec)
 
     @staticmethod
     def parse_canvas_definition(json_data: Dict[str, Any]) -> CanvasDefinitionSpec:

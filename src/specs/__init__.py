@@ -46,7 +46,6 @@ from .s3_spec import (
 
 from .flow_canvas_spec import (
     CanvasPosition,
-    NodeDataSpec,
     CanvasNodeSpec,
     EdgeDataSpec,
     CanvasEdgeSpec,
@@ -99,7 +98,6 @@ __all__ = [
     
     # Flow Canvas Specs
     'CanvasPosition',
-    'NodeDataSpec',
     'CanvasNodeSpec',
     'EdgeDataSpec',
     'CanvasEdgeSpec',

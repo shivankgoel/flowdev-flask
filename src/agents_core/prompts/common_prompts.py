@@ -58,4 +58,12 @@ Generate complete and production-ready code for your assigned node. Ensure it:
 Now generate your response in the following format:
 1) Put all the code along with import statements inside <generated_code> </generated_code> tags
 2) Do not include any markdown code block delimiters (e.g. ```python, ```java, ```typescript)
-3) Do not include any other text or formatting outside of the <generated_code> </generated_code> tags"""
+3) Do not include any other text or formatting outside of the <generated_code> </generated_code> tags
+4) Provide any response to the instructions given to you in the <assistant_response> </assistant_response> tags
+5) If you are unable to generate code, provide a response in the <assistant_response> </assistant_response> tags with the reason why
+6) You can optionally include your thoughts and reasoning in the <assistant_thoughts> </assistant_thoughts> tags
+7) Make sure to not have multiple <generated_code> </generated_code> tags in your response
+8) Make sure to not have multiple <assistant_response> </assistant_response> tags in your response
+9) Make sure to not have multiple <assistant_thoughts> </assistant_thoughts> tags in your response
+10) You must always generate the code but response and thoughts are optional
+"""

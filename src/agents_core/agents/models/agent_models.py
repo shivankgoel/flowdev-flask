@@ -11,7 +11,15 @@ class AgentStep(Enum):
 
 
 @dataclass
-class CodingAgentResponse:
-    """Response from the agent."""
+class AgentThoughts:
+    """Model for agent's thoughts and reasoning."""
+    thoughts: str
+
+@dataclass
+class AgentResponse:
+    """Model for agent's response including code, thoughts, and response text."""
+    agent_node_id: str  # Canvas id if canvas else node id
     code: str
+    thoughts: Optional[AgentThoughts] = None
+    response: Optional[str] = None
     error: Optional[str] = None
