@@ -19,10 +19,16 @@ from src.api.models.canvas_models import (
     CreateCanvasVersionRequest
 )
 
+# Mock Cognito auth for testing
+class MockCognitoAuth:
+    @staticmethod
+    def require_auth():
+        return "test-customer-123"  # Return a mock customer ID
+
 class CanvasApiTester:
     def __init__(self):
         self.handler = CanvasApiHandler()
-        self.customer_id = "test-customer-123"  # Using the mock customer ID from .env
+        self.customer_id = MockCognitoAuth.require_auth()  # Use mock auth
         self.test_canvas_id = None  # Will be set after creating a canvas
 
     async def test_create_canvas(self) -> Dict[str, Any]:

@@ -21,8 +21,6 @@ class UpdateCanvasRequest:
     """Request model for updating a canvas."""
     canvas_id: str
     canvas_name: Optional[str] = None
-    description: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -92,7 +90,6 @@ class CreateCanvasVersionResponse:
     """Response model for creating a new canvas version."""
     canvas_id: str
     canvas_version: str
-
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass

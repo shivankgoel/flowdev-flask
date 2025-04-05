@@ -93,7 +93,7 @@ class CanvasApiHandler:
             )
             if self.coordinator.save_canvas(canvas_do):
                 response = UpdateCanvasResponse(canvas_id=request.canvas_id)
-                return {"data": response.__dict__, "status_code": 200}
+                return {"data": response.to_dict(), "status_code": 200}
             return {"error": "Failed to update canvas", "status_code": 500}
         except Exception as e:
             return {"error": f"Failed to update canvas: {str(e)}", "status_code": 500}
@@ -114,11 +114,11 @@ class CanvasApiHandler:
                 canvas_versions=[
                     ListCanvasVersionsResponseItem(
                         canvas_id=request.canvas_id,
-                        canvas_version=version  # version is already a string
+                        canvas_version=version
                     ) for version in versions
                 ]
             )
-            return {"data": response.__dict__, "status_code": 200}
+            return {"data": response.to_dict(), "status_code": 200}
         except Exception as e:
             return {"error": f"Failed to list canvas versions: {str(e)}", "status_code": 500}
     
@@ -146,6 +146,6 @@ class CanvasApiHandler:
                     ) for canvas in canvases
                 ]
             )
-            return {"data": response.__dict__, "status_code": 200}
+            return {"data": response.to_dict(), "status_code": 200}
         except Exception as e:
             return {"error": f"Failed to list canvases: {str(e)}", "status_code": 500} 

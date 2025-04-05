@@ -1,7 +1,10 @@
-from fastapi import APIRouter, HTTPException, Request, Depends
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException, Request, Depends, Body
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+import logging
+import traceback
+
 from src.api.models.canvas_models import (
     CreateCanvasRequest,
     UpdateCanvasRequest,
@@ -21,31 +24,34 @@ from src.api.models.canvas_models import (
 from src.api.handlers.canvas_handler import CanvasApiHandler
 from src.api.auth.cognito_auth import CognitoAuth
 
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/canvas")
 canvas_handler = CanvasApiHandler()
+logger = logging.getLogger(__name__)
 
-def handle_response(result):
+def handle_response(result: Dict[str, Any]) -> Response:
     if "error" in result:
-        raise HTTPException(status_code=result["status_code"], detail=result["error"])
-    return JSONResponse(content=result.get("data", {}), status_code=result["status_code"])
+        raise HTTPException(status_code=result.get("status_code", 500), detail=result["error"])
+    return JSONResponse(content=result.get("data", {}), status_code=result.get("status_code", 200))
 
-@router.post('/api/v1/canvas', response_model=CreateCanvasResponse)
+# Canvas Collection Operations
+@router.post('', response_model=CreateCanvasResponse)
 async def create_canvas(
-    request_model: CreateCanvasRequest,
-    request: Request,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    request_model: CreateCanvasRequest = Body(...),
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
     """Create a new canvas with the given name and optional metadata."""
     try:
         result = canvas_handler.create_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to create canvas")
         raise HTTPException(status_code=500, detail=f"Failed to create canvas: {str(e)}")
 
-@router.get('/api/v1/canvas', response_model=ListCanvasResponse)
+@router.get('', response_model=ListCanvasResponse)
 async def list_canvases(
-    request: Request,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
     """List all canvases for the current customer."""
     try:
@@ -53,57 +59,61 @@ async def list_canvases(
         result = canvas_handler.list_canvases(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to list canvases")
         raise HTTPException(status_code=500, detail=f"Failed to list canvases: {str(e)}")
 
-@router.get('/api/v1/canvas/{canvas_id}', response_model=GetCanvasResponse)
+# Individual Canvas Operations
+@router.get('/{canvas_id}', response_model=GetCanvasResponse)
 async def get_canvas(
     canvas_id: str,
-    version: Optional[str] = 'latest',
+    version: Optional[str] = 'draft',
     request: Request = None,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Get a specific canvas by ID and optional version."""
+    """Get a specific canvas by ID and version."""
     try:
         request_model = GetCanvasRequest(canvas_id=canvas_id, canvas_version=version)
         result = canvas_handler.get_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to get canvas")
         raise HTTPException(status_code=500, detail=f"Failed to get canvas: {str(e)}")
 
-@router.put('/api/v1/canvas/{canvas_id}', response_model=UpdateCanvasResponse)
+@router.put('', response_model=UpdateCanvasResponse)
 async def update_canvas(
-    canvas_id: str,
-    request_model: UpdateCanvasRequest,
-    request: Request,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    request_model: UpdateCanvasRequest = Body(...),
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
     """Update the draft version of a canvas with new name, description, or metadata."""
     try:
         result = canvas_handler.update_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to update canvas")
         raise HTTPException(status_code=500, detail=f"Failed to update canvas: {str(e)}")
 
-@router.delete('/api/v1/canvas/{canvas_id}', response_model=DeleteCanvasResponse)
+@router.delete('/{canvas_id}', response_model=DeleteCanvasResponse)
 async def delete_canvas(
     canvas_id: str,
-    version: Optional[str] = 'latest',
     request: Request = None,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Delete a specific canvas version or all versions if no version specified."""
+    """Delete a canvas and all its versions."""
     try:
-        request_model = DeleteCanvasRequest(canvas_id=canvas_id, canvas_version=version)
+        request_model = DeleteCanvasRequest(canvas_id=canvas_id)
         result = canvas_handler.delete_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to delete canvas")
         raise HTTPException(status_code=500, detail=f"Failed to delete canvas: {str(e)}")
 
-@router.get('/api/v1/canvas/{canvas_id}/versions', response_model=ListCanvasVersionsResponse)
+# Canvas Version Operations
+@router.get('/{canvas_id}/versions', response_model=ListCanvasVersionsResponse)
 async def list_canvas_versions(
     canvas_id: str,
-    request: Request,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
     """List all versions of a specific canvas."""
     try:
@@ -111,13 +121,14 @@ async def list_canvas_versions(
         result = canvas_handler.list_canvas_versions(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
+        logger.exception("Failed to list canvas versions")
         raise HTTPException(status_code=500, detail=f"Failed to list canvas versions: {str(e)}")
 
-@router.post('/api/v1/canvas/{canvas_id}/version', response_model=CreateCanvasVersionResponse)
+@router.post('/{canvas_id}/version', response_model=CreateCanvasVersionResponse)
 async def create_canvas_version(
     canvas_id: str,
-    request: Request,
-    customer_id: str = Depends(CognitoAuth.require_auth)
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
     """Create a new version of a canvas from the current draft."""
     try:
@@ -125,4 +136,5 @@ async def create_canvas_version(
         result = canvas_handler.create_canvas_version(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to create new version: {str(e)}") 
+        logger.exception("Failed to create canvas version")
+        raise HTTPException(status_code=500, detail=f"Failed to create new version: {str(e)}")
