@@ -1,257 +1,128 @@
-from flask import Blueprint, request, jsonify
-from typing import Dict, Any
-import uuid
-from datetime import datetime
-from src.agents_core.storage.coordinator.canvas_coordinator import CanvasCoordinator
-from src.agents_core.storage.coordinator.node_coordinator import NodeCoordinator
-from src.agents_core.storage.coordinator.edge_coordinator import EdgeCoordinator
-from src.agents_core.storage.coordinator.chat_thread_coordinator import ChatThreadCoordinator
-from src.specs.flow_canvas_spec import (
-    CanvasNodeSpec,
-    CanvasEdgeSpec,
-    ChatThread,
-    ChatMessage,
-    MessageContent,
-    MessageContentType,
-    ChatMessageRole,
-    ChatMessageSourceType
+from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from typing import List, Optional, Dict, Any
+from src.api.models.canvas_models import (
+    CreateCanvasRequest,
+    UpdateCanvasRequest,
+    GetCanvasRequest,
+    DeleteCanvasRequest,
+    CreateCanvasVersionRequest,
+    ListCanvasVersionsRequest,
+    ListCanvasRequest,
+    ListCanvasResponse,
+    ListCanvasVersionsResponse,
+    CreateCanvasResponse,
+    UpdateCanvasResponse,
+    DeleteCanvasResponse,
+    GetCanvasResponse,
+    CreateCanvasVersionResponse
 )
-from src.agents_core.storage.dynamodb.canvas_dao import Canvas
+from src.api.handlers.canvas_handler import CanvasApiHandler
+from src.api.auth.cognito_auth import CognitoAuth
 
-canvas_bp = Blueprint('canvas', __name__)
-canvas_coordinator = CanvasCoordinator()
-node_coordinator = NodeCoordinator()
-edge_coordinator = EdgeCoordinator()
-chat_thread_coordinator = ChatThreadCoordinator()
+router = APIRouter()
+canvas_handler = CanvasApiHandler()
 
-@canvas_bp.route('/canvas/<customer_id>', methods=['POST'])
-def create_canvas(customer_id: str):
+def handle_response(result):
+    if "error" in result:
+        raise HTTPException(status_code=result["status_code"], detail=result["error"])
+    return JSONResponse(content=result.get("data", {}), status_code=result["status_code"])
+
+@router.post('/api/v1/canvas', response_model=CreateCanvasResponse)
+async def create_canvas(
+    request_model: CreateCanvasRequest,
+    request: Request,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """Create a new canvas with the given name and optional metadata."""
     try:
-        data = request.get_json()
-        canvas_id = str(uuid.uuid4())
-        canvas_version = "draft"
-        timestamp = datetime.utcnow().isoformat()
-        
-        # Create canvas object
-        canvas = Canvas(
-            canvas_name=data.get('canvas_name', f"Canvas-{canvas_id[:8]}"),
-            customer_id=customer_id,
-            canvas_id=canvas_id,
-            canvas_version=canvas_version,
-            created_at=timestamp,
-            updated_at=timestamp
-        )
-        
-        # Save canvas
-        success = canvas_coordinator.save_canvas(canvas)
-        
-        if success:
-            return jsonify({"canvas_id": canvas_id}), 201
-        return jsonify({"error": "Failed to create canvas"}), 500
+        result = canvas_handler.create_canvas(customer_id, request_model)
+        return handle_response(result)
     except Exception as e:
-        print(f"Error creating canvas: {str(e)}")
-        print(f"Error type: {type(e)}")
-        import traceback
-        print(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"error": f"Failed to create canvas: {str(e)}"}), 500
+        raise HTTPException(status_code=500, detail=f"Failed to create canvas: {str(e)}")
 
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>', methods=['GET'])
-def get_canvas(customer_id: str, canvas_id: str, canvas_version: str):
-    canvas = canvas_coordinator.get_canvas(customer_id, canvas_id, canvas_version)
-    if canvas:
-        return jsonify(canvas.to_dict()), 200
-    return jsonify({"error": "Canvas not found"}), 404
+@router.get('/api/v1/canvas', response_model=ListCanvasResponse)
+async def list_canvases(
+    request: Request,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """List all canvases for the current customer."""
+    try:
+        request_model = ListCanvasRequest()
+        result = canvas_handler.list_canvases(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list canvases: {str(e)}")
 
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>', methods=['PUT'])
-def update_canvas(customer_id: str, canvas_id: str, canvas_version: str):
-    data = request.get_json()
-    canvas = canvas_coordinator.get_canvas(customer_id, canvas_id, canvas_version)
-    if not canvas:
-        return jsonify({"error": "Canvas not found"}), 404
-    
-    # Update canvas with new data
-    canvas = Canvas(
-        canvas_name=data.get('canvas_name', canvas.canvas_name),
-        customer_id=customer_id,
-        canvas_id=canvas_id,
-        canvas_version=canvas_version,
-        created_at=canvas.created_at,
-        updated_at=datetime.utcnow().isoformat() 
-    )
-    
-    if canvas_coordinator.save_canvas(canvas):
-        return jsonify({"message": "Canvas updated successfully"}), 200
-    return jsonify({"error": "Failed to update canvas"}), 500
+@router.get('/api/v1/canvas/{canvas_id}', response_model=GetCanvasResponse)
+async def get_canvas(
+    canvas_id: str,
+    version: Optional[str] = 'latest',
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """Get a specific canvas by ID and optional version."""
+    try:
+        request_model = GetCanvasRequest(canvas_id=canvas_id, canvas_version=version)
+        result = canvas_handler.get_canvas(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get canvas: {str(e)}")
 
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>', methods=['DELETE'])
-def delete_canvas(customer_id: str, canvas_id: str):
-    if canvas_coordinator.delete_canvas(customer_id, canvas_id):
-        return jsonify({"message": "Canvas deleted successfully"}), 200
-    return jsonify({"error": "Failed to delete canvas"}), 500
+@router.put('/api/v1/canvas/{canvas_id}', response_model=UpdateCanvasResponse)
+async def update_canvas(
+    canvas_id: str,
+    request_model: UpdateCanvasRequest,
+    request: Request,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """Update the draft version of a canvas with new name, description, or metadata."""
+    try:
+        result = canvas_handler.update_canvas(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update canvas: {str(e)}")
 
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/versions', methods=['GET'])
-def list_canvas_versions(customer_id: str, canvas_id: str):
-    versions = canvas_coordinator.list_canvas_versions(customer_id, canvas_id)
-    return jsonify({"versions": versions}), 200
+@router.delete('/api/v1/canvas/{canvas_id}', response_model=DeleteCanvasResponse)
+async def delete_canvas(
+    canvas_id: str,
+    version: Optional[str] = 'latest',
+    request: Request = None,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """Delete a specific canvas version or all versions if no version specified."""
+    try:
+        request_model = DeleteCanvasRequest(canvas_id=canvas_id, canvas_version=version)
+        result = canvas_handler.delete_canvas(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete canvas: {str(e)}")
 
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/version', methods=['POST'])
-def create_canvas_version(customer_id: str, canvas_id: str):
-    new_version = canvas_coordinator.create_canvas_version(customer_id, canvas_id)
-    if new_version:
-        return jsonify({"version": new_version}), 201
-    return jsonify({"error": "Failed to create new version"}), 500
+@router.get('/api/v1/canvas/{canvas_id}/versions', response_model=ListCanvasVersionsResponse)
+async def list_canvas_versions(
+    canvas_id: str,
+    request: Request,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """List all versions of a specific canvas."""
+    try:
+        request_model = ListCanvasVersionsRequest(canvas_id=canvas_id)
+        result = canvas_handler.list_canvas_versions(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list canvas versions: {str(e)}")
 
-# Node Operations
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes', methods=['POST'])
-def add_node(customer_id: str, canvas_id: str, canvas_version: str):
-    data = request.get_json()
-    node_id = str(uuid.uuid4())
-    node_spec = CanvasNodeSpec(
-        id=node_id,
-        type=data['type'],
-        position=data['position'],
-        data=data.get('data', {}),
-        metadata=data.get('metadata', {})
-    )
-    
-    if node_coordinator.save_node(node_spec, customer_id, canvas_id, canvas_version):
-        return jsonify({"node_id": node_id}), 201
-    return jsonify({"error": "Failed to add node"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>', methods=['PUT'])
-def update_node(customer_id: str, canvas_id: str, canvas_version: str, node_id: str):
-    data = request.get_json()
-    node = node_coordinator.get_node(customer_id, canvas_id, canvas_version, node_id)
-    if not node:
-        return jsonify({"error": "Node not found"}), 404
-    
-    # Update node with new data
-    node.position = data.get('position', node.position)
-    node.data = data.get('data', node.data)
-    node.metadata = data.get('metadata', node.metadata)
-    
-    if node_coordinator.save_node(node, customer_id, canvas_id, canvas_version):
-        return jsonify({"message": "Node updated successfully"}), 200
-    return jsonify({"error": "Failed to update node"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>', methods=['DELETE'])
-def delete_node(customer_id: str, canvas_id: str, canvas_version: str, node_id: str):
-    if node_coordinator.delete_node(customer_id, canvas_id, canvas_version, node_id):
-        return jsonify({"message": "Node deleted successfully"}), 200
-    return jsonify({"error": "Failed to delete node"}), 500
-
-# Edge Operations
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/edges', methods=['POST'])
-def add_edge(customer_id: str, canvas_id: str, canvas_version: str):
-    data = request.get_json()
-    edge_id = str(uuid.uuid4())
-    edge_spec = CanvasEdgeSpec(
-        id=edge_id,
-        source=data['source'],
-        target=data['target'],
-        edge_type=data['edge_type'],
-        data=data.get('data', {})
-    )
-    
-    if edge_coordinator.save_edge(edge_spec, customer_id, canvas_id, canvas_version):
-        return jsonify({"edge_id": edge_id}), 201
-    return jsonify({"error": "Failed to add edge"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/edges/<edge_id>', methods=['PUT'])
-def update_edge(customer_id: str, canvas_id: str, canvas_version: str, edge_id: str):
-    data = request.get_json()
-    edge = edge_coordinator.get_edge(customer_id, canvas_id, canvas_version, edge_id)
-    if not edge:
-        return jsonify({"error": "Edge not found"}), 404
-    
-    # Update edge with new data
-    edge.data = data.get('data', edge.data)
-    
-    if edge_coordinator.save_edge(edge, customer_id, canvas_id, canvas_version):
-        return jsonify({"message": "Edge updated successfully"}), 200
-    return jsonify({"error": "Failed to update edge"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/edges/<edge_id>', methods=['DELETE'])
-def delete_edge(customer_id: str, canvas_id: str, canvas_version: str, edge_id: str):
-    if edge_coordinator.delete_edge(customer_id, canvas_id, canvas_version, edge_id):
-        return jsonify({"message": "Edge deleted successfully"}), 200
-    return jsonify({"error": "Failed to delete edge"}), 500
-
-# Chat Operations
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/chat-threads/<thread_id>/messages', methods=['POST'])
-def add_chat_message(customer_id: str, canvas_id: str, canvas_version: str, node_id: str, thread_id: str):
-    data = request.get_json()
-    message = ChatMessage(
-        timestamp=datetime.utcnow().isoformat(),
-        role=ChatMessageRole(data['role']),
-        source_type=ChatMessageSourceType.HUMAN,
-        contents=[MessageContent(content_type=MessageContentType.TEXT, text=data['content'])]
-    )
-    
-    if chat_thread_coordinator.add_message(customer_id, canvas_id, canvas_version, node_id, thread_id, message):
-        return jsonify({"message": "Message added successfully"}), 201
-    return jsonify({"error": "Failed to add chat message"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/chat-threads', methods=['GET'])
-def list_chat_threads(customer_id: str, canvas_id: str, canvas_version: str, node_id: str):
-    threads = chat_thread_coordinator.get_all_chat_threads(customer_id, canvas_id, canvas_version, node_id)
-    return jsonify({"threads": [thread.to_dict() for thread in threads]}), 200
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/chat-threads/<thread_id>', methods=['GET'])
-def get_chat_thread(customer_id: str, canvas_id: str, canvas_version: str, node_id: str, thread_id: str):
-    thread = chat_thread_coordinator.get_chat_thread(customer_id, canvas_id, canvas_version, node_id, thread_id)
-    if thread:
-        return jsonify(thread.to_dict()), 200
-    return jsonify({"error": "Chat thread not found"}), 404
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/chat-threads', methods=['POST'])
-def create_chat_thread(customer_id: str, canvas_id: str, canvas_version: str, node_id: str):
-    data = request.get_json()
-    thread_id = str(uuid.uuid4())
-    
-    # Create initial message
-    initial_message = ChatMessage(
-        timestamp=datetime.utcnow().isoformat(),
-        role=ChatMessageRole(data['role']),
-        source_type=ChatMessageSourceType.HUMAN,
-        contents=[MessageContent(content_type=MessageContentType.TEXT, text=data['content'])]
-    )
-    
-    # Create thread with initial message
-    thread = ChatThread(
-        chat_thread_id=thread_id,
-        messages=[initial_message],
-        created_at=datetime.utcnow().isoformat(),
-        updated_at=datetime.utcnow().isoformat()
-    )
-    
-    if chat_thread_coordinator.save_chat_thread(thread, customer_id, canvas_id, canvas_version):
-        return jsonify({"thread_id": thread_id}), 201
-    return jsonify({"error": "Failed to create chat thread"}), 500
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/chat-threads/<thread_id>', methods=['DELETE'])
-def delete_chat_thread(customer_id: str, canvas_id: str, canvas_version: str, node_id: str, thread_id: str):
-    if chat_thread_coordinator.delete_chat_thread(customer_id, canvas_id, canvas_version, node_id, thread_id):
-        return jsonify({"message": "Chat thread deleted successfully"}), 200
-    return jsonify({"error": "Failed to delete chat thread"}), 500
-
-# Code Generation Operations
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/nodes/<node_id>/generate-code', methods=['POST'])
-def generate_node_code(customer_id: str, canvas_id: str, canvas_version: str, node_id: str):
-    # Get the node
-    node = node_coordinator.get_node(customer_id, canvas_id, canvas_version, node_id)
-    if not node:
-        return jsonify({"error": "Node not found"}), 404
-
-    # TODO: Implement code generation logic
-    return jsonify({"message": "Code generation triggered"}), 200
-
-@canvas_bp.route('/canvas/<customer_id>/<canvas_id>/<canvas_version>/generate-code', methods=['POST'])
-def generate_canvas_code(customer_id: str, canvas_id: str, canvas_version: str):
-    # Get the canvas
-    canvas = canvas_coordinator.get_canvas(customer_id, canvas_id, canvas_version)
-    if not canvas:
-        return jsonify({"error": "Canvas not found"}), 404
-
-    # TODO: Implement code generation logic for all nodes
-    return jsonify({"message": "Code generation triggered for all nodes"}), 200 
+@router.post('/api/v1/canvas/{canvas_id}/version', response_model=CreateCanvasVersionResponse)
+async def create_canvas_version(
+    canvas_id: str,
+    request: Request,
+    customer_id: str = Depends(CognitoAuth.require_auth)
+):
+    """Create a new version of a canvas from the current draft."""
+    try:
+        request_model = CreateCanvasVersionRequest(canvas_id=canvas_id)
+        result = canvas_handler.create_canvas_version(customer_id, request_model)
+        return handle_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create new version: {str(e)}") 

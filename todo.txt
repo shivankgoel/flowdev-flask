@@ -1,0 +1,1 @@
+- Given canvas id, node id generate code for that node
