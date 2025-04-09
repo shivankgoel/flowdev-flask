@@ -2,7 +2,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
 from src.storage.coordinator.canvas_coordinator import CanvasCoordinator
-from src.storage.models.models import CanvasDO
+from src.storage.models.models import CanvasDO, CanvasDefinitionDO
 from src.api.models.canvas_models import (
     CreateCanvasRequest,
     CreateCanvasResponse,
@@ -31,67 +31,96 @@ class CanvasApiHandler:
             canvas_id = str(uuid.uuid4())
             canvas_version = "draft"
             timestamp = datetime.utcnow().isoformat()
-            print(f"Creating canvas with name: {request.canvas_name}, id: {canvas_id}")
+            
             canvas_do = CanvasDO(
                 canvas_name=request.canvas_name,
                 customer_id=customer_id,
                 canvas_id=canvas_id,
                 canvas_version=canvas_version,
                 created_at=timestamp,
-                updated_at=timestamp
+                updated_at=timestamp,
+                canvas_definition_s3_uri=None
             )
-            print(f"Canvas DO created: {canvas_do}")
-            success = self.coordinator.save_canvas(canvas_do)
-            print(f"Save result: {success}")
+            
+            # Create canvas definition if provided
+            canvas_definition = None
+            if hasattr(request, 'nodes') and hasattr(request, 'edges'):
+                canvas_definition = CanvasDefinitionDO(
+                    nodes=request.nodes,
+                    edges=request.edges
+                )
+            
+
+            success = self.coordinator.save_canvas(canvas_do, canvas_definition)
             if success:
                 response = CreateCanvasResponse(canvas_id=canvas_id)
                 return {"data": response.__dict__, "status_code": 201}
             return {"error": "Failed to create canvas", "status_code": 500}
         except Exception as e:
-            print(f"Error creating canvas: {str(e)}")
-            print(f"Error type: {type(e)}")
             import traceback
-            print(f"Full traceback: {traceback.format_exc()}")
             return {"error": f"Failed to create canvas: {str(e)}", "status_code": 500}
     
     def get_canvas(self, customer_id: str, request: GetCanvasRequest) -> Dict[str, Any]:
         try:
-            canvas = self.coordinator.get_canvas(
+            canvas_do, canvas_definition = self.coordinator.get_canvas(
                 customer_id, 
                 request.canvas_id, 
                 request.canvas_version
             )
-            if not canvas:
+
+            if not canvas_do:
                 return {"error": "Canvas not found", "status_code": 404}
+            
             response = GetCanvasResponse(
-                canvas_id=canvas.canvas_id,
-                canvas_version=canvas.canvas_version,
-                canvas_name=canvas.canvas_name,
-                created_at=canvas.created_at,
-                updated_at=canvas.updated_at
+                canvas_id=canvas_do.canvas_id,
+                canvas_version=canvas_do.canvas_version,
+                canvas_name=canvas_do.canvas_name,
+                created_at=canvas_do.created_at,
+                updated_at=canvas_do.updated_at
             )
+            
+            # Add canvas definition to response if it exists
+            if canvas_definition:
+                response.nodes = canvas_definition.nodes
+                response.edges = canvas_definition.edges
+            else:
+                # Initialize empty lists if no definition exists
+                response.nodes = []
+                response.edges = []
+            
             return {"data": response.__dict__, "status_code": 200}
         except Exception as e:
             return {"error": f"Failed to get canvas: {str(e)}", "status_code": 500}
     
     def update_canvas(self, customer_id: str, request: UpdateCanvasRequest) -> Dict[str, Any]:
         try:
-            canvas = self.coordinator.get_canvas(
+            canvas_do, canvas_definition = self.coordinator.get_canvas(
                 customer_id, 
                 request.canvas_id, 
                 "draft"
             )
-            if not canvas:
+            if not canvas_do:
                 return {"error": "Canvas not found", "status_code": 404}
-            canvas_do = CanvasDO(
+            
+            # Create new canvas definition if provided
+            new_definition = None
+            if hasattr(request, 'nodes') and hasattr(request, 'edges'):
+                new_definition = CanvasDefinitionDO(
+                    nodes=request.nodes,
+                    edges=request.edges
+                )
+            
+            updated_canvas_do = CanvasDO(
                 canvas_name=request.canvas_name,
                 customer_id=customer_id,
                 canvas_id=request.canvas_id,
                 canvas_version="draft",
-                created_at=canvas.created_at,
-                updated_at=datetime.utcnow().isoformat() 
+                created_at=canvas_do.created_at,
+                updated_at=datetime.utcnow().isoformat(),
+                canvas_definition_s3_uri=canvas_do.canvas_definition_s3_uri
             )
-            if self.coordinator.save_canvas(canvas_do):
+            
+            if self.coordinator.save_canvas(updated_canvas_do, new_definition):
                 response = UpdateCanvasResponse(canvas_id=request.canvas_id)
                 return {"data": response.to_dict(), "status_code": 200}
             return {"error": "Failed to update canvas", "status_code": 500}

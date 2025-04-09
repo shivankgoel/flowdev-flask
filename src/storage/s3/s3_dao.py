@@ -28,11 +28,7 @@ class S3DAOConnectionError(S3DAOError):
     pass
 
 def handle_s3_errors(operation_name: str) -> Callable[[Callable[..., T]], Callable[..., T]]:
-    """Decorator to handle common S3 operation errors.
-    
-    Args:
-        operation_name: Name of the operation for logging purposes
-    """
+    """Decorator to handle common S3 operation errors."""
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> T:
@@ -451,4 +447,110 @@ class S3DAO:
         for thread in threads:
             if thread.chat_thread_id == thread_id:
                 return thread
-        return None 
+        return None
+
+    @handle_s3_errors("getting object")
+    def get_object(self, s3_uri: str) -> str:
+        """Get an object from S3.
+        
+        Args:
+            s3_uri: The S3 URI of the object to get
+            
+        Returns:
+            str: The object content as a string
+            
+        Raises:
+            S3DAOError: If there's an error getting the object
+            S3DAONotFoundError: If the object is not found
+            S3DAOConnectionError: If there's a connection issue
+        """
+        try:
+            # Extract bucket and key from S3 URI
+            if not s3_uri.startswith('s3://'):
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            parts = s3_uri[5:].split('/', 1)
+            if len(parts) != 2:
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            bucket, key = parts
+            
+            response = self.manager.client.get_object(
+                Bucket=bucket,
+                Key=key
+            )
+            actual_content = response['Body'].read().decode('utf-8')
+            return actual_content
+        except Exception as e:
+            logger.error(f"Error getting object from S3: {str(e)}")
+            raise S3DAOError(f"Failed to get object from S3: {str(e)}")
+
+    @handle_s3_errors("putting object")
+    def put_object(self, s3_uri: str, content: str) -> bool:
+        """Put an object in S3.
+        
+        Args:
+            s3_uri: The S3 URI where to put the object
+            content: The content to put in S3
+            
+        Returns:
+            bool: True if successful, False otherwise
+            
+        Raises:
+            S3DAOError: If there's an error putting the object
+            S3DAOConnectionError: If there's a connection issue
+        """
+        try:
+            # Extract bucket and key from S3 URI
+            if not s3_uri.startswith('s3://'):
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            parts = s3_uri[5:].split('/', 1)
+            if len(parts) != 2:
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            bucket, key = parts
+            
+            self.manager.client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=content
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error putting object to S3: {str(e)}")
+            raise S3DAOError(f"Failed to put object to S3: {str(e)}")
+
+    @handle_s3_errors("deleting object")
+    def delete_object(self, s3_uri: str) -> bool:
+        """Delete an object from S3.
+        
+        Args:
+            s3_uri: The S3 URI of the object to delete
+            
+        Returns:
+            bool: True if successful, False otherwise
+            
+        Raises:
+            S3DAOError: If there's an error deleting the object
+            S3DAOConnectionError: If there's a connection issue
+        """
+        try:
+            # Extract bucket and key from S3 URI
+            if not s3_uri.startswith('s3://'):
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            parts = s3_uri[5:].split('/', 1)
+            if len(parts) != 2:
+                raise S3DAOError(f"Invalid S3 URI: {s3_uri}")
+            
+            bucket, key = parts
+            
+            self.manager.client.delete_object(
+                Bucket=bucket,
+                Key=key
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error deleting object from S3: {str(e)}")
+            raise S3DAOError(f"Failed to delete object from S3: {str(e)}") 

@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, Request, Depends, Body
 from fastapi.responses import JSONResponse, Response
-from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
+from typing import Optional, Dict, Any
 import logging
-import traceback
+from dataclasses import asdict
 
 from src.api.models.canvas_models import (
     CreateCanvasRequest,
@@ -31,7 +30,33 @@ logger = logging.getLogger(__name__)
 def handle_response(result: Dict[str, Any]) -> Response:
     if "error" in result:
         raise HTTPException(status_code=result.get("status_code", 500), detail=result["error"])
-    return JSONResponse(content=result.get("data", {}), status_code=result.get("status_code", 200))
+    
+    # Convert the result to a dictionary if it's a dataclass
+    data = result.get("data", {})
+    if hasattr(data, '__dataclass_fields__'):
+        data = asdict(data)
+    
+    # Handle CanvasNode objects in the response
+    def serialize_node(node):
+        if hasattr(node, 'to_dict'):
+            return node.to_dict()
+        return node
+    
+    # Recursively serialize any CanvasNode objects in the response
+    def serialize_data(obj):
+        if isinstance(obj, list):
+            return [serialize_data(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {k: serialize_data(v) for k, v in obj.items()}
+        else:
+            return serialize_node(obj)
+    
+    serialized_data = serialize_data(data)
+    return JSONResponse(
+        content=serialized_data,
+        status_code=result.get("status_code", 200),
+        media_type="application/json"
+    )
 
 # Canvas Collection Operations
 @router.post('', response_model=CreateCanvasResponse)
@@ -40,7 +65,7 @@ async def create_canvas(
     request: Request = None,
     customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Create a new canvas with the given name and optional metadata."""
+    """Create a new canvas with the given name and optional canvas definition."""
     try:
         result = canvas_handler.create_canvas(customer_id, request_model)
         return handle_response(result)
@@ -70,7 +95,7 @@ async def get_canvas(
     request: Request = None,
     customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Get a specific canvas by ID and version."""
+    """Get a specific canvas by ID and version, including its definition if available."""
     try:
         request_model = GetCanvasRequest(canvas_id=canvas_id, canvas_version=version)
         result = canvas_handler.get_canvas(customer_id, request_model)
@@ -85,7 +110,7 @@ async def update_canvas(
     request: Request = None,
     customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Update the draft version of a canvas with new name, description, or metadata."""
+    """Update the draft version of a canvas with new name and/or canvas definition."""
     try:
         result = canvas_handler.update_canvas(customer_id, request_model)
         return handle_response(result)
@@ -99,7 +124,7 @@ async def delete_canvas(
     request: Request = None,
     customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Delete a canvas and all its versions."""
+    """Delete a canvas and all its versions, including their definitions in S3."""
     try:
         request_model = DeleteCanvasRequest(canvas_id=canvas_id)
         result = canvas_handler.delete_canvas(customer_id, request_model)
@@ -130,7 +155,7 @@ async def create_canvas_version(
     request: Request = None,
     customer_id: str = Depends(CognitoAuth.get_customer_id)
 ):
-    """Create a new version of a canvas from the current draft."""
+    """Create a new version of a canvas from the current draft, including its definition."""
     try:
         request_model = CreateCanvasVersionRequest(canvas_id=canvas_id)
         result = canvas_handler.create_canvas_version(customer_id, request_model)

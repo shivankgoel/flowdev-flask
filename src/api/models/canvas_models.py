@@ -1,13 +1,16 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
-
+from .node_models import CanvasNode
+from .edge_models import CanvasEdge
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CreateCanvasRequest:
     """Request model for creating a new canvas."""
     canvas_name: str
+    nodes: Optional[List[CanvasNode]] = None
+    edges: Optional[List[CanvasEdge]] = None
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -20,7 +23,9 @@ class CreateCanvasResponse:
 class UpdateCanvasRequest:
     """Request model for updating a canvas."""
     canvas_id: str
-    canvas_name: Optional[str] = None
+    canvas_name: str
+    nodes: Optional[List[CanvasNode]] = None
+    edges: Optional[List[CanvasEdge]] = None
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -45,6 +50,8 @@ class GetCanvasResponse:
     canvas_name: str
     created_at: str
     updated_at: str
+    nodes: Optional[List[CanvasNode]] = None
+    edges: Optional[List[CanvasEdge]] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)

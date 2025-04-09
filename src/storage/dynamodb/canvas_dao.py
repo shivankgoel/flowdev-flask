@@ -36,7 +36,8 @@ class CanvasDAO(BaseDynamoDBDAO[CanvasDO]):
             canvas_id=extracted_canvas_id,
             canvas_version=extracted_canvas_version,
             created_at=item['created_at'],
-            updated_at=item['updated_at']
+            updated_at=item['updated_at'],
+            canvas_definition_s3_uri=item['canvas_definition_s3_uri']
         )
 
     def get_canvas(self, customer_id: str, canvas_id: str, canvas_version: str) -> Optional[CanvasDO]:
@@ -66,6 +67,7 @@ class CanvasDAO(BaseDynamoDBDAO[CanvasDO]):
                 'canvas_name': canvas.canvas_name,
                 'created_at': canvas.created_at,
                 'updated_at': canvas.updated_at,
+                'canvas_definition_s3_uri': canvas.canvas_definition_s3_uri,
             })
         except Exception as e:
             self.logger.error(f"Error saving canvas: {str(e)}")
