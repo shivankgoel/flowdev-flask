@@ -28,12 +28,18 @@ class CanvasNodeType(str, Enum):
     def __json__(self):
         return self.value
 
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class NodePosition:
+    x: float
+    y: float
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CanvasNode:
     nodeId: str
     nodeType: CanvasNodeType
+    nodePosition: NodePosition
     nodeConfig: Optional[Union[
         DynamoDbNodeConfig,
         S3BucketNodeConfig,
