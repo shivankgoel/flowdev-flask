@@ -4,6 +4,9 @@ import jwt
 from jose import jwt as jose_jwt
 import requests
 from typing import Optional
+import logging
+
+logger = logging.getLogger(__name__)
 
 class CognitoAuth:
     """Handles customer authentication."""
@@ -45,7 +48,7 @@ class CognitoAuth:
             # Return customer ID (sub claim)
             return claims.get('sub')
         except Exception as e:
-            print(f"Error verifying token: {str(e)}")
+            logger.error(f"Error verifying token: {str(e)}")
             return None
     
     @staticmethod
@@ -55,18 +58,28 @@ class CognitoAuth:
         In development mode, returns a mock customer ID.
         In production mode, verifies Cognito token and returns customer ID.
         """
-        if os.getenv('FLASK_ENV', 'production').lower() == 'development':
-            return "test-customer-123"
+        # Get environment and log it
+        env = os.getenv('FLASK_ENV', 'production').lower()
+        logger.info(f"Environment check - FLASK_ENV: {env}")
+        logger.info(f"Environment check - All env vars: {dict(os.environ)}")
+        
+        if env == 'development':
+            mock_id = os.getenv('MOCK_CUSTOMER_ID', 'test-customer-123')
+            logger.info(f"Development mode - Using mock customer ID: {mock_id}")
+            return mock_id
             
         # Get token from Authorization header
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
+            logger.warning("Missing or invalid Authorization header")
             raise HTTPException(status_code=401, detail="Missing Authorization header")
             
         token = auth_header.split(' ')[1]
         customer_id = CognitoAuth.verify_cognito_token(token)
         
         if not customer_id:
+            logger.warning("Invalid or expired token")
             raise HTTPException(status_code=401, detail="Invalid or expired token")
             
+        logger.info(f"Successfully verified token for customer: {customer_id}")
         return customer_id 
