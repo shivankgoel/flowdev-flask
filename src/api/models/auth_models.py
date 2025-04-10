@@ -48,7 +48,12 @@ class GitHubLoginRequest(OAuthLoginRequest):
     """Request model for GitHub login"""
     pass
 
-class OAuthCallbackRequest(BaseModel):
+
+class RefreshTokenRequest(BaseModel):
+    """Request model for refresh token"""
+    refresh_token: str = Field(..., description="Refresh token to refresh")
+
+class GetTokenRequest(BaseModel):
     """Request model for OAuth callback"""
     code: str = Field(..., description="Authorization code from OAuth provider")
     state: Optional[str] = Field(None, description="State parameter for CSRF protection")
@@ -59,4 +64,13 @@ class OAuthTokenResponse(BaseModel):
     refresh_token: Optional[str] = Field(None, description="Refresh token for getting new access tokens")
     id_token: Optional[str] = Field(None, description="ID token containing user information")
     token_type: str = Field(..., description="Type of token (usually 'Bearer')")
-    expires_in: int = Field(..., description="Token expiration time in seconds") 
+    expires_in: int = Field(..., description="Token expiration time in seconds")
+
+class CognitoConfig(BaseModel):
+    """Cognito configuration settings"""
+    region: str = Field(default="us-east-1", description="AWS region for Cognito")
+    user_pool_id: str = Field(..., description="Cognito User Pool ID")
+    app_client_id: str = Field(..., description="Cognito App Client ID")
+    app_client_secret: str = Field(..., description="Cognito App Client Secret")
+    domain: str = Field(..., description="Cognito Domain")
+    callback_url: str = Field(..., description="OAuth callback URL") 
