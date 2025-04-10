@@ -162,9 +162,6 @@ async def google_login(request: Request, _: GoogleLoginRequest = Depends()) -> O
     
     # Use the exact callback URL from config
     callback_url = config['callback_url']
-    logger.info(f"Using Cognito domain: {config['domain']}")
-    logger.info(f"Using callback URL: {callback_url}")
-    logger.info(f"Full Cognito config: {config}")
     
     # Construct the Cognito hosted UI URL for Google
     params = {
