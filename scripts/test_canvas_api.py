@@ -34,32 +34,30 @@ class CanvasApiTester:
     async def test_create_canvas(self) -> Dict[str, Any]:
         """Test creating a new canvas."""
         request = CreateCanvasRequest(
-            canvas_name="Test Canvas",
+            canvasName="Test Canvas",
         )
         return self.handler.create_canvas(self.customer_id, request)
 
     async def test_get_canvas(self, canvas_id: str) -> Dict[str, Any]:
         """Test getting a canvas by ID."""
         request = GetCanvasRequest(
-            canvas_id=canvas_id,
-            canvas_version="draft"
+            canvasId=canvas_id,
+            canvasVersion="draft"
         )
         return self.handler.get_canvas(self.customer_id, request)
 
     async def test_update_canvas(self, canvas_id: str) -> Dict[str, Any]:
         """Test updating a canvas."""
         request = UpdateCanvasRequest(
-            canvas_id=canvas_id,
-            canvas_name="Updated Test Canvas",
-            description="Updated description",
-            metadata={"updated": "true"}
+            canvasId=canvas_id,
+            canvasName="Updated Test Canvas"
         )
         return self.handler.update_canvas(self.customer_id, request)
 
     async def test_delete_canvas(self, canvas_id: str) -> Dict[str, Any]:
         """Test deleting a canvas."""
         request = DeleteCanvasRequest(
-            canvas_id=canvas_id
+            canvasId=canvas_id
         )
         return self.handler.delete_canvas(self.customer_id, request)
 
@@ -71,13 +69,13 @@ class CanvasApiTester:
     async def test_list_canvas_versions(self, canvas_id: str) -> Dict[str, Any]:
         """Test listing canvas versions."""
         request = ListCanvasVersionsRequest(
-            canvas_id=canvas_id,
+            canvasId=canvas_id,
         )
         return self.handler.list_canvas_versions(self.customer_id, request)
 
     async def test_create_canvas_version(self, canvas_id: str) -> Dict[str, Any]:
         """Test creating a new canvas version."""
-        request = CreateCanvasVersionRequest(canvas_id=canvas_id)
+        request = CreateCanvasVersionRequest(canvasId=canvas_id)
         return self.handler.create_canvas_version(self.customer_id, request)
 
     async def run_all_tests(self):
@@ -89,7 +87,7 @@ class CanvasApiTester:
         create_result = await self.test_create_canvas()
         print(f"Create result: {create_result}")
         if "data" in create_result:
-            self.test_canvas_id = create_result["data"]["canvas_id"]
+            self.test_canvas_id = create_result["data"]["canvasId"]
             print(f"Created canvas with ID: {self.test_canvas_id}")
         input("\nPress Enter to continue to next test...")
 

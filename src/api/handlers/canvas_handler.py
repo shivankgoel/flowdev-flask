@@ -33,7 +33,7 @@ class CanvasApiHandler:
             timestamp = datetime.utcnow().isoformat()
             
             canvas_do = CanvasDO(
-                canvas_name=request.canvas_name,
+                canvas_name=request.canvasName,
                 customer_id=customer_id,
                 canvas_id=canvas_id,
                 canvas_version=canvas_version,
@@ -53,7 +53,7 @@ class CanvasApiHandler:
 
             success = self.coordinator.save_canvas(canvas_do, canvas_definition)
             if success:
-                response = CreateCanvasResponse(canvas_id=canvas_id)
+                response = CreateCanvasResponse(canvasId=canvas_id)
                 return {"data": response.__dict__, "status_code": 201}
             return {"error": "Failed to create canvas", "status_code": 500}
         except Exception as e:
@@ -62,75 +62,58 @@ class CanvasApiHandler:
     
     def get_canvas(self, customer_id: str, request: GetCanvasRequest) -> Dict[str, Any]:
         try:
-            canvas_do, canvas_definition = self.coordinator.get_canvas(
+            canvas, definition = self.coordinator.get_canvas(
                 customer_id, 
-                request.canvas_id, 
-                request.canvas_version
+                request.canvasId, 
+                request.canvasVersion
             )
-
-            if not canvas_do:
+            if not canvas:
                 return {"error": "Canvas not found", "status_code": 404}
             
             response = GetCanvasResponse(
-                canvas_id=canvas_do.canvas_id,
-                canvas_version=canvas_do.canvas_version,
-                canvas_name=canvas_do.canvas_name,
-                created_at=canvas_do.created_at,
-                updated_at=canvas_do.updated_at
+                canvasId=canvas.canvas_id,
+                canvasVersion=canvas.canvas_version,
+                canvasName=canvas.canvas_name,
+                createdAt=canvas.created_at,
+                updatedAt=canvas.updated_at,
+                nodes=definition.nodes if definition else None,
+                edges=definition.edges if definition else None
             )
-            
-            # Add canvas definition to response if it exists
-            if canvas_definition:
-                response.nodes = canvas_definition.nodes
-                response.edges = canvas_definition.edges
-            else:
-                # Initialize empty lists if no definition exists
-                response.nodes = []
-                response.edges = []
-            
             return {"data": response.__dict__, "status_code": 200}
         except Exception as e:
             return {"error": f"Failed to get canvas: {str(e)}", "status_code": 500}
     
     def update_canvas(self, customer_id: str, request: UpdateCanvasRequest) -> Dict[str, Any]:
         try:
-            canvas_do, canvas_definition = self.coordinator.get_canvas(
+            canvas, definition = self.coordinator.get_canvas(
                 customer_id, 
-                request.canvas_id, 
+                request.canvasId, 
                 "draft"
             )
-            if not canvas_do:
+            if not canvas:
                 return {"error": "Canvas not found", "status_code": 404}
             
-            # Create new canvas definition if provided
-            new_definition = None
+            canvas.canvas_name = request.canvasName
+            canvas.updated_at = datetime.utcnow().isoformat()
+
             if hasattr(request, 'nodes') and hasattr(request, 'edges'):
-                new_definition = CanvasDefinitionDO(
+                definition = CanvasDefinitionDO(
                     nodes=request.nodes,
                     edges=request.edges
                 )
-            
-            updated_canvas_do = CanvasDO(
-                canvas_name=request.canvas_name,
-                customer_id=customer_id,
-                canvas_id=request.canvas_id,
-                canvas_version="draft",
-                created_at=canvas_do.created_at,
-                updated_at=datetime.utcnow().isoformat(),
-                canvas_definition_s3_uri=canvas_do.canvas_definition_s3_uri
-            )
-            
-            if self.coordinator.save_canvas(updated_canvas_do, new_definition):
-                response = UpdateCanvasResponse(canvas_id=request.canvas_id)
-                return {"data": response.to_dict(), "status_code": 200}
+
+            success = self.coordinator.save_canvas(canvas, definition)
+            if success:
+                response = UpdateCanvasResponse(canvasId=canvas.canvas_id)
+                return {"data": response.__dict__, "status_code": 200}
             return {"error": "Failed to update canvas", "status_code": 500}
         except Exception as e:
             return {"error": f"Failed to update canvas: {str(e)}", "status_code": 500}
     
     def delete_canvas(self, customer_id: str, request: DeleteCanvasRequest) -> Dict[str, Any]:
         try:
-            if self.coordinator.delete_canvas_all_versions(customer_id, request.canvas_id):
-                response = DeleteCanvasResponse(canvas_id=request.canvas_id)
+            if self.coordinator.delete_canvas_all_versions(customer_id, request.canvasId):
+                response = DeleteCanvasResponse(canvasId=request.canvasId)
                 return {"data": response.__dict__, "status_code": 200}
             return {"error": "Failed to delete canvas", "status_code": 500}
         except Exception as e:
@@ -138,12 +121,12 @@ class CanvasApiHandler:
     
     def list_canvas_versions(self, customer_id: str, request: ListCanvasVersionsRequest) -> Dict[str, Any]:
         try:
-            versions = self.coordinator.list_canvas_versions(customer_id, request.canvas_id)
+            versions = self.coordinator.list_canvas_versions(customer_id, request.canvasId)
             response = ListCanvasVersionsResponse(
-                canvas_versions=[
+                canvasVersions=[
                     ListCanvasVersionsResponseItem(
-                        canvas_id=request.canvas_id,
-                        canvas_version=version
+                        canvasId=request.canvasId,
+                        canvasVersion=version
                     ) for version in versions
                 ]
             )
@@ -153,11 +136,11 @@ class CanvasApiHandler:
     
     def create_canvas_version(self, customer_id: str, request: CreateCanvasVersionRequest) -> Dict[str, Any]:
         try:
-            new_version = self.coordinator.create_canvas_version(customer_id, request.canvas_id)
+            new_version = self.coordinator.create_canvas_version(customer_id, request.canvasId)
             if new_version:
                 response = CreateCanvasVersionResponse(
-                    canvas_id=request.canvas_id,
-                    canvas_version=new_version
+                    canvasId=request.canvasId,
+                    canvasVersion=new_version
                 )
                 return {"data": response.__dict__, "status_code": 201}
             return {"error": "Failed to create new version", "status_code": 500}
@@ -170,8 +153,11 @@ class CanvasApiHandler:
             response = ListCanvasResponse(
                 canvases=[
                     ListCanvasResponseItem(
-                        canvas_id=canvas.canvas_id,
-                        canvas_name=canvas.canvas_name
+                        canvasId=canvas.canvas_id,
+                        canvasName=canvas.canvas_name,
+                        canvasVersion=canvas.canvas_version,
+                        createdAt=canvas.created_at,
+                        updatedAt=canvas.updated_at
                     ) for canvas in canvases
                 ]
             )

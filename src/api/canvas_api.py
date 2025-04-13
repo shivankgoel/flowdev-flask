@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse, Response
 from typing import Optional, Dict, Any
 import logging
 from dataclasses import asdict
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from src.api.models.canvas_models import (
     CreateCanvasRequest,
@@ -97,7 +99,7 @@ async def get_canvas(
 ):
     """Get a specific canvas by ID and version, including its definition if available."""
     try:
-        request_model = GetCanvasRequest(canvas_id=canvas_id, canvas_version=version)
+        request_model = GetCanvasRequest(canvasId=canvas_id, canvasVersion=version)
         result = canvas_handler.get_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
@@ -112,8 +114,22 @@ async def update_canvas(
 ):
     """Update the draft version of a canvas with new name and/or canvas definition."""
     try:
+        # Log the raw request body
+        body = await request.body()
+        logger.info(f"Raw request body: {body.decode()}")
+        
+        # Log the parsed request model
+        logger.info(f"Parsed request model: {request_model}")
+        logger.info(f"Canvas ID: {request_model.canvasId}")
+        logger.info(f"Canvas Name: {request_model.canvasName}")
+        logger.info(f"Nodes count: {len(request_model.nodes) if request_model.nodes else 0}")
+        logger.info(f"Edges count: {len(request_model.edges) if request_model.edges else 0}")
+        
         result = canvas_handler.update_canvas(customer_id, request_model)
         return handle_response(result)
+    except RequestValidationError as e:
+        logger.error(f"Request validation error: {str(e)}")
+        raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
         logger.exception("Failed to update canvas")
         raise HTTPException(status_code=500, detail=f"Failed to update canvas: {str(e)}")
@@ -126,7 +142,7 @@ async def delete_canvas(
 ):
     """Delete a canvas and all its versions, including their definitions in S3."""
     try:
-        request_model = DeleteCanvasRequest(canvas_id=canvas_id)
+        request_model = DeleteCanvasRequest(canvasId=canvas_id)
         result = canvas_handler.delete_canvas(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
@@ -142,7 +158,7 @@ async def list_canvas_versions(
 ):
     """List all versions of a specific canvas."""
     try:
-        request_model = ListCanvasVersionsRequest(canvas_id=canvas_id)
+        request_model = ListCanvasVersionsRequest(canvasId=canvas_id)
         result = canvas_handler.list_canvas_versions(customer_id, request_model)
         return handle_response(result)
     except Exception as e:
@@ -157,7 +173,7 @@ async def create_canvas_version(
 ):
     """Create a new version of a canvas from the current draft, including its definition."""
     try:
-        request_model = CreateCanvasVersionRequest(canvas_id=canvas_id)
+        request_model = CreateCanvasVersionRequest(canvasId=canvas_id)
         result = canvas_handler.create_canvas_version(customer_id, request_model)
         return handle_response(result)
     except Exception as e:

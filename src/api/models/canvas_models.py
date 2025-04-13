@@ -8,7 +8,7 @@ from .edge_models import CanvasEdge
 @dataclass
 class CreateCanvasRequest:
     """Request model for creating a new canvas."""
-    canvas_name: str
+    canvasName: str
     nodes: Optional[List[CanvasNode]] = None
     edges: Optional[List[CanvasEdge]] = None
 
@@ -16,14 +16,14 @@ class CreateCanvasRequest:
 @dataclass
 class CreateCanvasResponse:
     """Canvas metadata stored in DynamoDB."""
-    canvas_id: str
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class UpdateCanvasRequest:
     """Request model for updating a canvas."""
-    canvas_id: str
-    canvas_name: str
+    canvasId: str
+    canvasName: str
     nodes: Optional[List[CanvasNode]] = None
     edges: Optional[List[CanvasEdge]] = None
 
@@ -31,40 +31,38 @@ class UpdateCanvasRequest:
 @dataclass
 class UpdateCanvasResponse:
     """Response model for canvas update."""
-    canvas_id: str
-
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class GetCanvasRequest:
     """Request model for getting a canvas."""
-    canvas_id: str
-    canvas_version: str
+    canvasId: str
+    canvasVersion: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class GetCanvasResponse:
     """Response model for getting a canvas."""
-    canvas_id: str
-    canvas_version: str
-    canvas_name: str
-    created_at: str
-    updated_at: str
+    canvasId: str
+    canvasVersion: str
+    canvasName: str
+    createdAt: str
+    updatedAt: str
     nodes: Optional[List[CanvasNode]] = None
     edges: Optional[List[CanvasEdge]] = None
-
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class DeleteCanvasRequest:
     """Request model for deleting a canvas."""
-    canvas_id: str
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class DeleteCanvasResponse:
     """Canvas metadata stored in DynamoDB."""
-    canvas_id: str
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
@@ -75,45 +73,47 @@ class ListCanvasRequest:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ListCanvasResponseItem:
-    canvas_id: str
-    canvas_name: str
+    canvasId: str
+    canvasName: str
+    canvasVersion: str
+    createdAt: str
+    updatedAt: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ListCanvasResponse:
     """Response model for listing canvases."""
-    canvases: List[ListCanvasResponseItem]  # List of {canvas_id, canvas_name}
-
+    canvases: List[ListCanvasResponseItem]  # List of {canvasId, canvasName}
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CreateCanvasVersionRequest:
     """Request model for creating a new canvas version."""
-    canvas_id: str
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CreateCanvasVersionResponse:
     """Response model for creating a new canvas version."""
-    canvas_id: str
-    canvas_version: str
+    canvasId: str
+    canvasVersion: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ListCanvasVersionsRequest:
     """Request model for listing canvas versions."""
-    canvas_id: str
+    canvasId: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ListCanvasVersionsResponseItem:
-    canvas_id: str
-    canvas_version: str
+    canvasId: str
+    canvasVersion: str
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ListCanvasVersionsResponse:
     """Response model for listing canvas versions."""
-    canvas_versions: List[ListCanvasVersionsResponseItem]  # List of {canvas_version, created_at}
+    canvasVersions: List[ListCanvasVersionsResponseItem]  # List of {canvasVersion, createdAt}
 
 

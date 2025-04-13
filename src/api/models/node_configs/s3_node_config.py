@@ -27,14 +27,14 @@ class S3StorageClass(str, Enum):
 class S3InfraConfig:
     versioning: bool
     encryption: S3EncryptionType
-    storage_class: S3StorageClass
-    lifecycle_rules: Optional[List[str]] = None
+    storageClass: S3StorageClass
+    lifecycleRules: Optional[List[str]] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class S3BucketNodeConfig:
     name: str
-    infra_spec: S3InfraConfig
-    file_path_prefix: Optional[str] = None
+    infraSpec: S3InfraConfig
+    filePathPrefix: Optional[str] = None
     description: Optional[str] = None

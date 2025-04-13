@@ -66,10 +66,12 @@ class CanvasCoordinator(BaseCoordinator):
 
     def save_canvas(self, canvas_do: CanvasDO, canvas_definition: Optional[CanvasDefinitionDO] = None) -> bool:
         try:
-            if canvas_definition:
+            if canvas_definition and canvas_definition.nodes is not None and canvas_definition.edges is not None:
                 # Debug logging
                 print(f"Canvas definition nodes: {canvas_definition.nodes}")
+                print(f"Canvas definition edges: {canvas_definition.edges}")
                 print(f"First node type: {type(canvas_definition.nodes[0]) if canvas_definition.nodes else 'No nodes'}")
+                print(f"First edge type: {type(canvas_definition.edges[0]) if canvas_definition.edges else 'No edges'}")
                 
                 # Ensure default values are set for nodes
                 for node in canvas_definition.nodes:
@@ -105,7 +107,7 @@ class CanvasCoordinator(BaseCoordinator):
                 # Update canvas DO with S3 URI
                 canvas_do.canvas_definition_s3_uri = s3_uri
             else:
-                # If no definition provided, clear the S3 URI
+                # If no definition provided or nodes/edges is None, clear the S3 URI
                 canvas_do.canvas_definition_s3_uri = None
             
             # Save canvas metadata to DynamoDB
