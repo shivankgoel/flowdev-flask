@@ -5,58 +5,31 @@ import sys
 import argparse
 import logging
 import re
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
 import asyncio
-from pprint import pprint
-from datetime import datetime
+from src.api.models.dataplane_models import CodeFile
 
 # Add the project root to Python path
 project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(project_root)
 
 from src.specs.dynamodb_spec import DynamoDBTableSpec, DynamoDBAttribute
-from src.specs.flow_canvas_spec import ProgrammingLanguage, CanvasNodeSpec, NodeDataSpec, CanvasDefinition
-from src.agents_core.agents.dynamodb_agent import DynamoDBAgent
-from src.agents_core.prompts.utils.spec_formatters import CanvasToPrompt, NodeSpecToPrompt, DynamoDBTableToPrompt
+from src.agents.node_agents.dynamodb_agent import DynamoDBAgent
 from src.inference.openai_inference import OpenAIInference
 from src.inference.bedrock_inference import BedrockInference
+from src.api.models.node_models import CanvasNode, CanvasNodeType, NodePosition
+from src.storage.models.models import CanvasDefinitionDO
+from src.api.models.dataplane_models import ProgrammingLanguage
+from src.agents.models.agent_models import InvokeAgentRequest, InvokeAgentQuerySource
 
 # Configure logging
 def setup_logging(verbose: bool = False):
     """Configure logging based on verbosity level."""
     level = logging.DEBUG if verbose else logging.INFO
-    
-    # Create formatters
-    console_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-    
-    # Create handlers
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(console_formatter)
-    
-    # Create logs directory if it doesn't exist
-    log_dir = os.path.join(project_root, 'logs')
-    os.makedirs(log_dir, exist_ok=True)
-    
-    # File handler for detailed logs
-    file_handler = logging.FileHandler(
-        os.path.join(log_dir, 'dynamodb_agent.log')
-    )
-    file_handler.setFormatter(file_formatter)
-    
-    # Configure root logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(level)
-    root_logger.addHandler(console_handler)
-    root_logger.addHandler(file_handler)
-    
-    return root_logger
+    logging.basicConfig(level=level, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    return logging.getLogger(__name__)
 
 class AttributeType(Enum):
     """Supported DynamoDB attribute types."""
@@ -89,25 +62,28 @@ def create_dynamodb_spec(config: TestConfig) -> DynamoDBTableSpec:
         attributes=config.attributes
     )
 
-def create_canvas_node(spec: DynamoDBTableSpec) -> CanvasNodeSpec:
-    """Create a CanvasNodeSpec from the DynamoDB spec."""
-    return CanvasNodeSpec(
-        id=f"dynamodb-{spec.name}",
-        type="dynamodb",
-        position={"x": 0, "y": 0},  # Default position for testing
-        data=NodeDataSpec(spec=spec)
+def create_canvas_node(spec: DynamoDBTableSpec) -> CanvasNode:
+    """Create a CanvasNode from the DynamoDB spec."""
+    # Create node config with DynamoDB spec
+    node_config = {
+        "name": spec.name,
+        "hashKey": spec.hash_key,
+        "rangeKey": spec.range_key,
+        "attributes": [{"name": attr.name, "type": attr.type} for attr in spec.attributes]
+    }
+    
+    return CanvasNode(
+        nodeId=f"dynamodb-{spec.name}",
+        nodeType=CanvasNodeType.DYNAMO_DB,
+        nodePosition=NodePosition(x=0, y=0),
+        nodeConfig=node_config
     )
 
-def create_canvas(node: CanvasNodeSpec, programming_language: ProgrammingLanguage) -> CanvasDefinition:
-    """Create a CanvasDefinitionSpec for testing."""
-    return CanvasDefinition(
-        nodes={node.id: node},
-        edges=[],
-        programming_language=programming_language,
-        version="1.0.0",
-        created_at=datetime.now().isoformat(),
-        updated_at=datetime.now().isoformat(),
-        canvas_id="canvas-1"
+def create_canvas(node: CanvasNode, programming_language: ProgrammingLanguage) -> CanvasDefinitionDO:
+    """Create a CanvasDefinitionDO for testing."""
+    return CanvasDefinitionDO(
+        nodes=[node],
+        edges=[]
     )
 
 def parse_attributes(attributes_str: str) -> List[DynamoDBAttribute]:
@@ -127,41 +103,25 @@ def parse_attributes(attributes_str: str) -> List[DynamoDBAttribute]:
             sys.exit(1)
     return attributes
 
-def save_code_to_file(code: str, table_name: str, language: str) -> str:
-    """
-    Save generated code to a file in the output directory.
-    
-    Args:
-        code: Generated code string
-        table_name: Name of the DynamoDB table
-        language: Programming language extension
-        
-    Returns:
-        str: Path to the saved file
-    """
-    # Create output directory if it doesn't exist
+def save_code_to_file(code_files: List[CodeFile], table_name: str) -> List[str]:
+    """Save generated code files to the output directory."""
     output_dir = os.path.join(os.path.dirname(__file__), 'generated')
     os.makedirs(output_dir, exist_ok=True)
     
-    # Create filename with timestamp
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    extension = {
-        'java': '.java',
-        'python': '.py',
-        'typescript': '.ts'
-    }.get(language, '.txt')
-    
-    filename = f"{table_name}_{timestamp}{extension}"
-    filepath = os.path.join(output_dir, filename)
-    
-    # Remove XML tags if present
-    code = re.sub(r'<generated_code>|</generated_code>', '', code).strip()
-    
-    # Save code to file
-    with open(filepath, 'w') as f:
-        f.write(code)
+    saved_files = []
+    for code_file in code_files:
+        # Create the full file path
+        filepath = os.path.join(output_dir, f"{table_name}_{code_file.filePath}")
         
-    return filepath
+        # Create parent directories if they don't exist
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        
+        # Write the file
+        with open(filepath, 'w') as f:
+            f.write(code_file.code)
+        saved_files.append(filepath)
+    
+    return saved_files
 
 async def run_test_case(
     config: TestConfig,
@@ -180,35 +140,42 @@ async def run_test_case(
         # Initialize agent
         agent = DynamoDBAgent(
             inference_client=inference_client,
-            current_node_id=canvas_node.id,
+            node=canvas_node,
             canvas=canvas
         )
 
+        # Create invoke request
+        invoke_request = InvokeAgentRequest(
+            query="Generate code for the DynamoDB table",
+            query_source=InvokeAgentQuerySource.USER
+        )
+
         # Generate code
-        logger.info(f"Generating DynamoDB code in {config.programming_language.value}")
-        response = await agent.generate_code()
-        
-        # Check for errors
-        if response.error:
-            logger.error(f"Code generation failed: {response.error}")
-            return False
-            
-        # Save code to file
-        filepath = save_code_to_file(
-            code=response.code,
-            table_name=config.table_name,
-            language=config.programming_language.value
+        logger.info(f"Generating DynamoDB code in {config.programming_language.name}")
+        response = await agent.invoke_agent(
+            invoke_agent_request=invoke_request,
+            language=config.programming_language
         )
         
-        # Print generated code and file location
+        # Check for errors in the response
+        if not response.code_parser_response.files:
+            logger.error("No code files found in response")
+            return False
+            
+        # Save code to files
+        saved_files = save_code_to_file(response.code_parser_response.files, config.table_name)
+        
+        # Print generated code and file locations
         if verbose:
             print("\nGenerated Code:")
             print("-" * 80)
-            pprint(response.code)
+            for code_file in response.code_parser_response.files:
+                print(f"\nFile: {code_file.filePath}")
+                print(code_file.code)
             print("-" * 80)
-        print(f"\nCode saved to: {filepath}")
+        print(f"\nCode saved to: {', '.join(saved_files)}")
 
-        logger.info(f"Code generation completed successfully and saved to {filepath}")
+        logger.info(f"Code generation completed successfully and saved to {saved_files}")
         return True
 
     except Exception as e:
@@ -246,7 +213,7 @@ async def main():
             primary_key=args.primary_key,
             range_key=args.range_key,
             attributes=parse_attributes(args.attributes),
-            programming_language=ProgrammingLanguage(args.language)
+            programming_language=ProgrammingLanguage(name=args.language, version="latest")
         )
 
         # Run test case

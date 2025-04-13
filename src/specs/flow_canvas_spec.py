@@ -8,12 +8,7 @@ from .application_logic_spec import ApplicationLogicSpec
 from .data_model_spec import DataModelNodeSpec
 from .api_endpoint_spec import ApiEndpointSpec
 from .application_orchestrator_spec import ApplicationOrchestratorSpec
-
-
-class ProgrammingLanguage(str, Enum):
-    PYTHON = 'python'
-    JAVA = 'java'
-    TYPESCRIPT = 'typescript'
+from src.api.models.dataplane_models import ProgrammingLanguage
 
 class MessageContentType(str, Enum):
     TEXT = 'text'

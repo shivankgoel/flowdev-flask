@@ -1,6 +1,15 @@
 from enum import Enum
 from dataclasses import dataclass
-from typing import Optional
+from src.agents.models.parser_models import CodeParserResponse
+
+
+class InvokeAgentQuerySource(Enum):
+    USER = "user"
+
+@dataclass
+class InvokeAgentRequest:
+    query: str
+    query_source: InvokeAgentQuerySource
 
 class AgentStep(Enum):
     """Steps in the code generation process."""
@@ -9,17 +18,8 @@ class AgentStep(Enum):
     PARSE = "parse"
     ERROR = "error"
 
-
-@dataclass
-class AgentThoughts:
-    """Model for agent's thoughts and reasoning."""
-    thoughts: str
-
 @dataclass
 class AgentResponse:
-    """Model for agent's response including code, thoughts, and response text."""
-    agent_node_id: str  # Canvas id if canvas else node id
-    code: str
-    thoughts: Optional[AgentThoughts] = None
-    response: Optional[str] = None
-    error: Optional[str] = None
+    agent_node_id: str
+    code_parser_response: CodeParserResponse
+    

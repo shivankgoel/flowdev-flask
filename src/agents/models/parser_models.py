@@ -1,10 +1,8 @@
 from dataclasses import dataclass
+from typing import List
+from src.api.models.dataplane_models import CodeFile
+
 
 @dataclass
-class ParsedResponse:
-    """Container for parsed code."""
-    code: str
-    code_language: str
-    response: str
-    thoughts: str
-    error: str
+class CodeParserResponse:
+    files: List[CodeFile]

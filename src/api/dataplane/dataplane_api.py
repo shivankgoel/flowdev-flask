@@ -39,8 +39,8 @@ async def generate_code(
 ):
     """Generate code for a specific node in a canvas."""
     try:
-        result = dataplane_handler.generate_code(customer_id, request_model)
-        return handle_response(result)
+        result = await dataplane_handler.generate_code(customer_id, request_model)
+        return result
     except RequestValidationError as e:
         logger.error(f"Request validation error: {str(e)}")
         raise HTTPException(status_code=422, detail=str(e))

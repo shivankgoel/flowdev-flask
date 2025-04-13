@@ -56,7 +56,7 @@ Instructions:
 13. Use async/await where appropriate"""
 
 # Map of language to prompt template
-PROMPTS = {
+DDB_PROMPTS = {
     "python": PYTHON_PROMPT,
     "java": JAVA_PROMPT,
     "typescript": TYPESCRIPT_PROMPT

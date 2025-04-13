@@ -23,15 +23,14 @@ This script allows you to test the DynamoDB code generation agent through the te
     --verbose
 ```
 
-3. Java Example with Custom Retry Settings:
+3. Java Example with OpenAI Inference:
 ```bash
 ./test_agent.py \
     --table-name "Orders" \
     --primary-key "orderId" \
     --attributes "orderId:String,customerId:String,total:Number,items:List" \
     --language java \
-    --max-retries 5 \
-    --retry-delay 2.0
+    --inference openai
 ```
 
 ## Test Cases
@@ -67,24 +66,6 @@ The script supports various test cases for different DynamoDB table configuratio
     --language java
 ```
 
-### 4. Table with Set Types
-```bash
-./test_agent.py \
-    --table-name "Products" \
-    --primary-key "productId" \
-    --attributes "productId:String,name:String,price:Number,categories:StringSet,images:BinarySet" \
-    --language python
-```
-
-### 5. Table with Binary Data
-```bash
-./test_agent.py \
-    --table-name "Documents" \
-    --primary-key "docId" \
-    --attributes "docId:String,content:Binary,type:String,size:Number" \
-    --language typescript
-```
-
 ## Command Line Arguments
 
 | Argument | Required | Default | Description |
@@ -93,10 +74,9 @@ The script supports various test cases for different DynamoDB table configuratio
 | `--primary-key` | Yes | - | Name of the primary key |
 | `--attributes` | Yes | - | Comma-separated list of attributes in "name:type" format |
 | `--language` | Yes | - | Programming language (java/python/typescript) |
-| `--max-retries` | No | 3 | Maximum number of retries |
-| `--retry-delay` | No | 1.0 | Delay between retries in seconds |
 | `--verbose` | No | False | Enable detailed logging output |
 | `--range-key` | No | - | Name of the range key |
+| `--inference` | No | bedrock | Inference client to use (bedrock/openai) |
 
 ## Logging
 
@@ -107,18 +87,8 @@ The script uses Python's built-in logging system with the following features:
    - DEBUG: Detailed information (enabled with --verbose)
    - ERROR: Error messages and exceptions
 
-2. **Output Destinations**:
-   - Console: Human-readable format
-   - File: Detailed format with additional context
-   - Log files are stored in the project's `logs` directory
-
-3. **Log Format**:
-   - Console: `%(asctime)s - %(name)s - %(levelname)s - %(message)s`
-   - File: `%(asctime)s - %(name)s - %(levelname)s - %(message)s - %(step)s - %(details)s`
-
-4. **Log File Location**:
-   - Default: `{project_root}/logs/dynamodb_agent.log`
-   - Directory is created automatically if it doesn't exist
+2. **Output Format**:
+   - `%(asctime)s - %(name)s - %(levelname)s - %(message)s`
 
 ## Supported Attribute Types
 
@@ -152,10 +122,11 @@ orderId:String,customerId:String,total:Number,items:List,status:String,createdAt
 
 ## Output
 
-The script will output:
-1. Generated code for the DynamoDB table
-2. Log messages to console and file
-3. Detailed debug information (when --verbose is used)
+The script will:
+1. Generate code files for the DynamoDB table
+2. Save them to the `generated` directory
+3. Print the paths of generated files
+4. Show detailed code output when `--verbose` is used
 
 ## Error Handling
 
@@ -169,10 +140,9 @@ The script includes validation for:
 ## Tips
 
 1. Use the `--verbose` flag to see detailed logging information about each step of the code generation process.
-2. If code generation fails, try increasing `--max-retries` and `--retry-delay`.
+2. Try different inference providers with `--inference` to compare results.
 3. Make sure attribute names don't contain spaces (use underscores instead).
-4. Check the log file for detailed information about the execution.
-5. The script automatically adds the project root to the Python path, so you can run it from any directory.
+4. The script automatically adds the project root to the Python path, so you can run it from any directory.
 
 ## Common Issues
 
@@ -208,7 +178,7 @@ The script includes validation for:
 1. Test with different programming languages
 2. Test with various attribute combinations
 3. Test error cases and validation
-4. Test retry mechanism with different settings
+4. Test different inference providers
 5. Test logging with different verbosity levels
 
 ### Dependencies

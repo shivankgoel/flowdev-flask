@@ -1,9 +1,13 @@
-from typing import Dict, Any, Optional
-from src.agents_core.agents.dynamodb_agent import DynamoDBAgent
+from typing import Dict, Any
 from src.inference.openai_inference import OpenAIInference
 from src.inference.bedrock_inference import BedrockInference
-from src.specs.flow_canvas_spec import CanvasDefinition, CanvasNodeSpec
-from .base_coordinator import StorageCoordinatorError
+from src.storage.coordinator.base_coordinator import StorageCoordinatorError
+from src.api.models.node_models import CanvasNode, CanvasNodeType
+from src.api.models.dataplane_models import ProgrammingLanguage
+from src.agents.node_agents.dynamodb_agent import DynamoDBAgent
+from src.storage.models.models import CanvasDefinitionDO
+from src.agents.models.agent_models import InvokeAgentRequest, InvokeAgentQuerySource
+from src.api.models.dataplane_models import GenerateCodeResponse
 import logging
 
 class AgentCoordinator:
@@ -11,10 +15,6 @@ class AgentCoordinator:
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self._agent_registry = {
-            "dynamodb": DynamoDBAgent
-            # Add more agents here as they are implemented
-        }
 
     def _get_inference_client(self, provider: str = "bedrock"):
         """Get the appropriate inference client based on provider."""
@@ -22,85 +22,38 @@ class AgentCoordinator:
             return OpenAIInference()
         return BedrockInference()
 
-    def _create_minimal_canvas(
-        self,
-        customer_id: str,
-        canvas_id: str,
-        canvas_version: str,
-        node: CanvasNodeSpec
-    ) -> CanvasDefinition:
-        """Create a minimal canvas definition for the agent."""
-        return CanvasDefinition(
-            customer_id=customer_id,
-            canvas_id=canvas_id,
-            canvas_version=canvas_version,
-            nodes=[node],
-            edges=[],
-            created_at=node.metadata.get("created_at", ""),
-            updated_at=node.metadata.get("updated_at", "")
-        )
+    def get_agent_based_on_node_type(self, inference_provider: str, node: CanvasNode, canvas: CanvasDefinitionDO) -> Any:
+        if node.nodeType == CanvasNodeType.DYNAMO_DB:
+            return DynamoDBAgent(
+                inference_client=self._get_inference_client(),
+                node=node,
+                canvas=canvas
+            )
+        else:
+            raise Exception(f"Unsupported node type: {node.nodeType}")
 
     async def generate_code(
         self,
-        node: CanvasNodeSpec,
-        customer_id: str,
-        canvas_id: str,
-        canvas_version: str,
-        language: str,
+        node: CanvasNode,
+        canvas: CanvasDefinitionDO,
+        language: ProgrammingLanguage,
         inference_provider: str = "bedrock"
     ) -> Dict[str, Any]:
-        """Generate code for a node using the appropriate agent.
-        
-        Args:
-            node: The node to generate code for
-            customer_id: ID of the customer
-            canvas_id: ID of the canvas
-            canvas_version: Version of the canvas
-            language: Programming language to generate code in
-            inference_provider: LLM provider to use ("bedrock" or "openai")
-            
-        Returns:
-            Dict[str, Any]: Generated code and metadata
-            
-        Raises:
-            StorageCoordinatorError: If code generation fails
-        """
         try:
-            # Get the appropriate agent class
-            agent_class = self._agent_registry.get(node.type)
-            if not agent_class:
-                raise StorageCoordinatorError(f"Unsupported node type: {node.type}")
+            agent = self.get_agent_based_on_node_type(inference_provider, node, canvas)
 
-            # Initialize inference client
-            inference_client = self._get_inference_client(inference_provider)
-
-            # Create minimal canvas
-            canvas = self._create_minimal_canvas(
-                customer_id=customer_id,
-                canvas_id=canvas_id,
-                canvas_version=canvas_version,
-                node=node
+            response = await agent.invoke_agent(
+                invoke_agent_request=InvokeAgentRequest(
+                    query="Generate code for the node",
+                    query_source=InvokeAgentQuerySource.USER
+                ),
+                language=language,
+                previous_code=""
             )
 
-            # Initialize agent
-            agent = agent_class(
-                inference_client=inference_client,
-                current_node_id=node.id,
-                canvas=canvas,
-                send_message_handler=lambda *args, **kwargs: None
+            return GenerateCodeResponse(
+                files=response.code_parser_response.files
             )
-
-            # Generate code
-            response = await agent.invoke_agent()
-            if response.error:
-                raise StorageCoordinatorError(f"Code generation failed: {response.error}")
-
-            return {
-                "code": response.code,
-                "language": language,
-                "node_id": node.id,
-                "thoughts": response.thoughts
-            }
 
         except Exception as e:
             self.logger.error(f"Error generating code: {str(e)}")
