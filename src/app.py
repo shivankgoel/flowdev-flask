@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from src.api.canvas_api import router as canvas_router
 from src.api.auth.routes import router as auth_router
+from src.api.dataplane.dataplane_api import router as dataplane_router
 import os
 from dotenv import load_dotenv
 import uvicorn
@@ -68,6 +69,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 # Include the routers
 app.include_router(canvas_router)
 app.include_router(auth_router)
+app.include_router(dataplane_router)
 
 @app.get("/")
 async def root():
