@@ -1,6 +1,6 @@
 import logging
 from src.inference import BaseLLMInference
-from src.agents.prompt_formatters.dynamodb_formatter import DynamoDBPromptFormatter
+from src.agents.prompt_formatters.code_formatter import CodePromptFormatter
 from ..models.agent_models import AgentResponse
 from src.storage.models.models import CanvasDefinitionDO
 from src.api.models.node_models import CanvasNode
@@ -11,7 +11,7 @@ from src.agents.llm_response_parsers.code_parser import CodeParser
 logger = logging.getLogger(__name__)
 
 
-class DynamoDBAgent:
+class CodingAgent:
     def __init__(
         self,
         inference_client: BaseLLMInference,
@@ -22,7 +22,7 @@ class DynamoDBAgent:
         self.canvas = canvas
         self.node = node
         self.code_parser = CodeParser()
-        self.formatter = DynamoDBPromptFormatter()
+        self.formatter = CodePromptFormatter()
         self.logger = logger
         
 

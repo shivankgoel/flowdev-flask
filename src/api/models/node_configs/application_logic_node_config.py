@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
 
@@ -20,18 +20,30 @@ class FunctionOutput:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ApplicationLogicFunctionSpec:
-    function_name: str
+    functionName: str
     description: str
     inputs: List[FunctionInput]
     outputs: List[FunctionOutput]
-    depends_on: List[str]
+    dependsOn: List[str]
+    logic: Optional[str] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ApplicationLogicNodeConfig:
-    class_name: str
-    private_attributes: List[Dict[str, str]]
-    public_attributes: List[Dict[str, str]]
-    private_functions: List[ApplicationLogicFunctionSpec]
-    public_functions: List[ApplicationLogicFunctionSpec] 
+    className: str
+    description: Optional[str] = None
+    privateAttributes: List[Dict[str, str]] = None
+    publicAttributes: List[Dict[str, str]] = None
+    privateFunctions: List[ApplicationLogicFunctionSpec] = None
+    publicFunctions: List[ApplicationLogicFunctionSpec] = None
+    
+    def __post_init__(self):
+        if self.privateAttributes is None:
+            self.privateAttributes = []
+        if self.publicAttributes is None:
+            self.publicAttributes = []
+        if self.privateFunctions is None:
+            self.privateFunctions = []
+        if self.publicFunctions is None:
+            self.publicFunctions = [] 

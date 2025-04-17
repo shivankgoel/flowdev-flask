@@ -15,14 +15,14 @@ class OrchestratorNodeType(str, Enum):
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ComposedNode:
-    node_id: str
-    node_type: OrchestratorNodeType
+    nodeId: str
+    nodeType: OrchestratorNodeType
     label: str
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ApplicationOrchestratorNodeConfig:
-    class_name: str
-    composed_of: List[ComposedNode]
+    className: str
+    composedOf: List[ComposedNode]
     description: Optional[str] = None 

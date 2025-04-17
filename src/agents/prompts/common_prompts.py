@@ -50,7 +50,10 @@ Now generate your response in the following format:
 5) Each file must be enclosed in <CodeFile> </CodeFile> tags
 6) Each file must have a <FilePath> </FilePath> tag that specifies the path to the file
 7) Each file must have a <Code> </Code> tag that contains the code for the file
-8) Here is an example response structure:
+8) For <FilePath> </FilePath> tag make sure you group files in relevant folders according to the functionality of the file. 
+9) You have two root folders: src/ and tst/
+10) For every files in source code, you must have a corresponding test file in the test folder for unit testing. Ideally folder location structure should have one to one mapping for source and test files.
+10) Here is an example response structure:
 <AllCodeFiles>
     <CodeFile>
         <FilePath>src/folder1/folder2/fileName1.fileExtension</FilePath>
@@ -61,6 +64,6 @@ Now generate your response in the following format:
         <Code>code for the file including imports</Code>
     </CodeFile>
 </AllCodeFiles>
-9) Do not include any markdown code block delimiters (e.g. ```python, ```java, ```typescript) in your response
-10) Do not make the functions and code async unless absolutely necessary
+11) Do not include any markdown code block delimiters (e.g. ```python, ```java, ```typescript) in your response
+12) Do not make the functions and code async unless absolutely necessary
 """

@@ -23,14 +23,14 @@ class Attribute:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Relationship:
-    target_model: str
-    relationship_type: RelationshipType
+    targetModel: str
+    relationshipType: RelationshipType
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class DataModelNodeConfig:
-    model_name: str
+    modelName: str
     attributes: List[Attribute]
     relationships: Optional[List[Relationship]] = None
-    validation_rules: Optional[List[str]] = None 
+    validationRules: Optional[List[str]] = None 

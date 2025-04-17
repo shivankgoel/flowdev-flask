@@ -43,8 +43,8 @@ class ContentType(str, Enum):
 class AuthenticationConfig:
     type: AuthType
     description: Optional[str] = None
-    api_key_location: Optional[ApiKeyLocation] = None
-    oauth_flow: Optional[str] = None
+    apiKeyLocation: Optional[ApiKeyLocation] = None
+    oauthFlow: Optional[str] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -52,15 +52,15 @@ class AuthenticationConfig:
 class RequestBody:
     description: Optional[str] = None
     schema: Dict[str, Union[str, int, bool, object]] = None
-    content_type: Optional[ContentType] = None
+    contentType: Optional[ContentType] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class ResponseBody:
-    status_code: int
+    statusCode: int
     body: Dict[str, Union[str, int, bool, object]]
-    content_type: Optional[ContentType] = None
+    contentType: Optional[ContentType] = None
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -68,12 +68,12 @@ class ResponseBody:
 class ApiEndpointNodeConfig:
     path: str
     method: Literal['GET', 'POST', 'PUT', 'DELETE', 'PATCH']
-    required_query_params: List[str]
-    optional_query_params: List[str]
-    content_type: Optional[ContentType] = None
-    request_body: Optional[RequestBody] = None
+    requiredQueryParams: List[str]
+    optionalQueryParams: List[str]
+    contentType: Optional[ContentType] = None
+    requestBody: Optional[RequestBody] = None
     headers: Optional[Dict[str, str]] = None
-    response_body: Optional[ResponseBody] = None
-    authentication_config: Optional[AuthenticationConfig] = None
+    responseBody: Optional[ResponseBody] = None
+    authenticationConfig: Optional[AuthenticationConfig] = None
     description: Optional[str] = None
-    endpoint_type: ApiEndpointType = ApiEndpointType.NON_STREAMING 
+    endpointType: ApiEndpointType = ApiEndpointType.NON_STREAMING 

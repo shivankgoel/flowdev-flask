@@ -4,7 +4,7 @@ from src.inference.bedrock_inference import BedrockInference
 from src.storage.coordinator.base_coordinator import StorageCoordinatorError
 from src.api.models.node_models import CanvasNode, CanvasNodeType
 from src.api.models.dataplane_models import ProgrammingLanguage
-from src.agents.node_agents.dynamodb_agent import DynamoDBAgent
+from src.agents.node_agents.coding_agent import CodingAgent
 from src.storage.models.models import CanvasDefinitionDO
 from src.agents.models.agent_models import InvokeAgentRequest, InvokeAgentQuerySource
 from src.api.models.dataplane_models import GenerateCodeResponse
@@ -23,14 +23,11 @@ class AgentCoordinator:
         return BedrockInference()
 
     def get_agent_based_on_node_type(self, inference_provider: str, node: CanvasNode, canvas: CanvasDefinitionDO) -> Any:
-        if node.nodeType == CanvasNodeType.DYNAMO_DB:
-            return DynamoDBAgent(
-                inference_client=self._get_inference_client(),
-                node=node,
-                canvas=canvas
-            )
-        else:
-            raise Exception(f"Unsupported node type: {node.nodeType}")
+        return CodingAgent(
+            inference_client=self._get_inference_client(),
+            node=node,
+            canvas=canvas
+        )
 
     async def generate_code(
         self,
