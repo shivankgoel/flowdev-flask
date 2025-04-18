@@ -19,6 +19,7 @@ class GenerateCodeRequest:
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class CodeFile:
+    nodeId: str
     filePath: str
     code: str
     programmingLanguage: ProgrammingLanguage

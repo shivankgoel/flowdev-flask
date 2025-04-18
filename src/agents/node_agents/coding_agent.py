@@ -21,7 +21,7 @@ class CodingAgent:
         self.inference_client = inference_client
         self.canvas = canvas
         self.node = node
-        self.code_parser = CodeParser()
+        self.code_parser = CodeParser(node_id=node.nodeId)
         self.formatter = CodePromptFormatter()
         self.logger = logger
         
