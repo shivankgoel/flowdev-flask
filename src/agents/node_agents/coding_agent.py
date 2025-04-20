@@ -7,9 +7,10 @@ from src.api.models.node_models import CanvasNode
 from src.agents.models.agent_models import InvokeAgentRequest
 from src.api.models.dataplane_models import ProgrammingLanguage
 from src.agents.llm_response_parsers.code_parser import CodeParser
+from typing import List
+from src.api.models.dataplane_models import CodeFile
 
 logger = logging.getLogger(__name__)
-
 
 class CodingAgent:
     def __init__(
@@ -30,7 +31,7 @@ class CodingAgent:
         self,
         invoke_agent_request: InvokeAgentRequest,
         language: ProgrammingLanguage,
-        previous_code: str = ""
+        previous_code: List[CodeFile]
     ) -> AgentResponse:
         """Invoke the agent with instructions and return the response."""
         try:

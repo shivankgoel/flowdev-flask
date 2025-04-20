@@ -150,7 +150,7 @@ class CanvasApiHandler:
     def list_canvases(self, customer_id: str, request: ListCanvasRequest) -> Dict[str, Any]:
         try:
             canvases = self.coordinator.get_unique_canvases(customer_id)
-            response = ListCanvasResponse(
+            response = ListCanvasResponse (
                 canvases=[
                     ListCanvasResponseItem(
                         canvasId=canvas.canvas_id,

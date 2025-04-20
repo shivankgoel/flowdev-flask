@@ -8,6 +8,8 @@ from src.api.models.node_models import CanvasNode, CanvasNodeType
 from src.storage.models.models import CanvasDefinitionDO
 from src.api.models.dataplane_models import ProgrammingLanguage
 from src.agents.models.agent_models import InvokeAgentRequest
+from src.api.models.dataplane_models import CodeFile
+from typing import List
 
 import json
 
@@ -29,6 +31,36 @@ class CodePromptFormatter:
             return APPLICATION_ORCHESTRATOR_PROMPTS.get(language.name.lower())
         else:
             raise ValueError(f"Unsupported node type: {node.nodeType}")
+
+    def format_previous_code(self, node: CanvasNode, previous_code: List[CodeFile]) -> str:
+        node_code_files = []
+        if previous_code:
+            for file in previous_code:
+                if file.nodeId == node.nodeId:
+                    node_code_files.append(file)
+        
+        if not node_code_files:
+            return ""
+
+        """
+        Generate a string in the following format:
+        <PreviousCodeFiles>
+            <CodeFile>
+                <FilePath>src/folder1/folder2/fileName1.fileExtension</FilePath>
+                <Code>code for the file including imports</Code>
+            </CodeFile>
+            <CodeFile>
+                <FilePath>src/folder1/folder3/fileName2.fileExtension</FilePath>
+                <Code>code for the file including imports</Code>
+            </CodeFile>
+        </PreviousCodeFiles>
+        """
+
+        previous_code_string = "<PreviousCodeFiles>\n"
+        for file in node_code_files:
+            previous_code_string += f"<CodeFile>\n<FilePath>{file.filePath}</FilePath>\n<Code>{file.code}</Code>\n</CodeFile>\n"
+        previous_code_string += "</PreviousCodeFiles>\n"
+        return previous_code_string
     
     def format_prompt(
         self,
@@ -36,7 +68,7 @@ class CodePromptFormatter:
         canvas: CanvasDefinitionDO,
         language: ProgrammingLanguage,
         invoke_agent_request: InvokeAgentRequest,
-        previous_code: str = ""
+        previous_code: List[CodeFile]
     ) -> str:
         """Format the prompt for code generation."""
         template = self.get_prompt_template(node, language)
@@ -50,13 +82,15 @@ class CodePromptFormatter:
             "typescript": "5.0"
         }.get(language.name.lower(), "latest")
 
+        previous_code_str = self.format_previous_code(node, previous_code)
+
         formatted_prompt = template.format(
             current_node_id=node.nodeId,
             instruction_source=invoke_agent_request.query_source.value,
             instruction=invoke_agent_request.query,
             canvas_definition=json.dumps(canvas.to_dict()),
             current_node_definition=json.dumps(node.to_dict()),
-            previous_code=previous_code,
+            previous_code=previous_code_str,
             language=language.name,
             language_version=language_version
         )

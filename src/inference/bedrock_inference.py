@@ -10,7 +10,7 @@ from .models.inference_models import InferenceResponse, ToolCall
 logger = logging.getLogger(__name__)
 
 class BedrockInference(BaseLLMInference):
-    def __init__(self, model: str = "anthropic.claude-3-sonnet-20240229-v1:0"):
+    def __init__(self, model: str = "anthropic.claude-3-haiku-20240307-v1:0"):
         config = Config(retries={"max_attempts": 3})
         self.client = boto3.client(
             service_name="bedrock-runtime",  # 👈 Must match for converse support

@@ -1,14 +1,23 @@
-from typing import Dict, Any
+from typing import Any
 from src.inference.openai_inference import OpenAIInference
 from src.inference.bedrock_inference import BedrockInference
 from src.storage.coordinator.base_coordinator import StorageCoordinatorError
-from src.api.models.node_models import CanvasNode, CanvasNodeType
+from src.api.models.node_models import CanvasNode
 from src.api.models.dataplane_models import ProgrammingLanguage
 from src.agents.node_agents.coding_agent import CodingAgent
 from src.storage.models.models import CanvasDefinitionDO
 from src.agents.models.agent_models import InvokeAgentRequest, InvokeAgentQuerySource
-from src.api.models.dataplane_models import GenerateCodeResponse
+from src.api.models.dataplane_models import CodeFile
+from dataclasses import dataclass
+from dataclasses_json import dataclass_json, LetterCase
+from typing import List
 import logging
+
+@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass
+class AgentCoordinatorGenerateCodeResponse:
+    files: List[CodeFile]
+    deletedFiles: List[CodeFile]
 
 class AgentCoordinator:
     """Coordinates agent operations for different node types."""
@@ -22,34 +31,34 @@ class AgentCoordinator:
             return OpenAIInference()
         return BedrockInference()
 
-    def get_agent_based_on_node_type(self, inference_provider: str, node: CanvasNode, canvas: CanvasDefinitionDO) -> Any:
-        return CodingAgent(
-            inference_client=self._get_inference_client(),
-            node=node,
-            canvas=canvas
-        )
-
+  
     async def generate_code(
         self,
         node: CanvasNode,
         canvas: CanvasDefinitionDO,
         language: ProgrammingLanguage,
+        previous_code: List[CodeFile],
         inference_provider: str = "bedrock"
-    ) -> Dict[str, Any]:
+    ) -> AgentCoordinatorGenerateCodeResponse:
         try:
-            agent = self.get_agent_based_on_node_type(inference_provider, node, canvas)
+            agent = CodingAgent (
+                inference_client=self._get_inference_client(inference_provider),
+                node=node,
+                canvas=canvas
+            )
 
-            response = await agent.invoke_agent(
+            response = await agent.invoke_agent (
                 invoke_agent_request=InvokeAgentRequest(
                     query="Generate code for the node",
                     query_source=InvokeAgentQuerySource.USER
                 ),
                 language=language,
-                previous_code=""
+                previous_code=previous_code
             )
 
-            return GenerateCodeResponse(
-                files=response.code_parser_response.files
+            return AgentCoordinatorGenerateCodeResponse (
+                files=response.code_parser_response.files,
+                deletedFiles=[]
             )
 
         except Exception as e:
