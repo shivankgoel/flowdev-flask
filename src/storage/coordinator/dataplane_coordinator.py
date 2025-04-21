@@ -35,8 +35,6 @@ class DataplaneCoordinator(BaseCoordinator):
                 self.logger.info(f"No code found at {code_s3_uri}, returning empty CodeDO")
                 return CodeDO(files=[])
             
-            self.logger.info(f"Code JSON: {code_json}")
-            # Parse the JSON string into a dictionary
             code_dict = json.loads(code_json)
             code_do = CodeDO(**code_dict)
             final_files = []
@@ -47,7 +45,6 @@ class DataplaneCoordinator(BaseCoordinator):
                     file = file_dict
                 final_files.append(file)
             code_do.files = final_files
-            self.logger.info(f"Code DO: {code_do}")
             return code_do
         except S3DAONotFoundError:
             self.logger.info(f"No code found at {code_s3_uri}, returning empty CodeDO")
@@ -66,6 +63,16 @@ class DataplaneCoordinator(BaseCoordinator):
             
             if not request.codeChange:
                 raise ValueError("No code change provided")
+
+            canvas_do, canvas_definition = self.canvas_coordinator.get_canvas(
+                customer_id,
+                request.canvasId,
+                request.canvasVersion
+            )
+
+            if not canvas_do or not canvas_definition:
+                raise StorageCoordinatorError(f"Canvas not found: {request.canvasId} version {request.canvasVersion}")
+                
                 
             # Get file lists from request - these are now guaranteed to be CodeFile objects
             added_files = request.codeChange.addedFiles or []
@@ -99,7 +106,10 @@ class DataplaneCoordinator(BaseCoordinator):
             # Verify the save was successful
             if not code_s3_uri:
                 raise StorageCoordinatorError("Failed to save code to S3")
-                
+
+            canvas_do.canvas_code_s3_uri = code_s3_uri
+            self.canvas_coordinator.update_canvas(canvas_do)
+
             return True
         except Exception as e:
             self.logger.exception(f"Error applying code changes: {str(e)}")
@@ -122,28 +132,31 @@ class DataplaneCoordinator(BaseCoordinator):
 
     def merge_existing_and_new_code(
         self,
+        node_id: str,
         old_code_files: List[CodeFile],
         new_code_files: List[CodeFile],
-        deleted_files: List[CodeFile]
     ) -> GenerateCodeResponse:
         if not old_code_files:
             old_code_files = []
-        added_files = []
-        updated_files = []
+        old_code_for_current_node = []
+        for file in old_code_files:
+            if file.nodeId == node_id:
+                old_code_for_current_node.append(file)
+        added_files = [] # files that exist in new code but not in old code
+        updated_files = [] # files that exist in both old and new code
+        deleted_files = [] # files that exist in old code but not in new code
         for new_file in new_code_files:
-            file_exists = False
-            for old_file in old_code_files:
-                if old_file.filePath == new_file.filePath:
-                    file_exists = True
-                    break
-            if file_exists:
-                updated_files.append(new_file)
-            else:
+            if new_file not in old_code_for_current_node:
                 added_files.append(new_file)
+            else:
+                updated_files.append(new_file)
+        for old_file in old_code_for_current_node:
+            if old_file not in new_code_files:
+                deleted_files.append(old_file)
         return GenerateCodeResponse (
             addedFiles=added_files,
             updatedFiles=updated_files,
-            deletedFiles=deleted_files if deleted_files else []
+            deletedFiles=deleted_files
         )
 
     async def generate_code(
@@ -157,6 +170,11 @@ class DataplaneCoordinator(BaseCoordinator):
                 customer_id,
                 request.canvasId,
                 request.canvasVersion
+            )
+
+            existing_code_do = await self.get_code_by_request(
+                customer_id, 
+                GetCodeRequest(canvasId=request.canvasId, canvasVersion=request.canvasVersion)
             )
             
             if not canvas_do or not canvas_definition:
@@ -173,30 +191,24 @@ class DataplaneCoordinator(BaseCoordinator):
                 raise StorageCoordinatorError(f"Node not found: {request.nodeId}")
 
             # Get the code for the target node
-            old_code_files: List[CodeFile] = None
-            code_s3_uri = canvas_do.canvas_code_s3_uri
-            if code_s3_uri:
-                code_do = await self.get_code_by_uri(code_s3_uri)
-                if code_do:
-                    old_code_files = code_do.files
+            existing_code: List[CodeFile] = existing_code_do.files
 
             # Generate code using agent coordinator
             response = await self.agent_coordinator.generate_code(
                 node=target_node,
                 canvas=canvas_definition,
                 language=request.programmingLanguage,
-                previous_code=old_code_files if old_code_files else [],
+                existing_code=existing_code,
                 inference_provider="bedrock"  # Default to Bedrock for now
             )
 
             new_code_files: List[CodeFile] = response.files
-            deleted_files: List[CodeFile] = response.deletedFiles
 
             # Merge existing and new code
             return self.merge_existing_and_new_code(
-                old_code_files if old_code_files else [],
+                target_node.nodeId,
+                existing_code if existing_code else [],
                 new_code_files,
-                deleted_files
             )
 
         except Exception as e:

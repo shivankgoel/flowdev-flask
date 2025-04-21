@@ -66,8 +66,6 @@ async def apply_code_changes(
 ):
     """Apply code changes to a specific node in a canvas."""        
     try:
-        logger.info(f"Applying code changes for customer {customer_id} with request {request_model}")
-
         if isinstance(request_model.codeChange, dict):
             request_model.codeChange = CodeChange.from_dict(request_model.codeChange)
 

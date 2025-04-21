@@ -11,5 +11,5 @@ class ApiEndpoint:
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
-class AuthServiceNodeConfig:
+class ApiServiceNodeConfig:
     apiEndpoints: List[ApiEndpoint]

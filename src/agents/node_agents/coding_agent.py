@@ -32,7 +32,7 @@ class CodingAgent:
         self,
         invoke_agent_request: InvokeAgentRequest,
         language: ProgrammingLanguage,
-        previous_code: List[CodeFile]
+        existing_code: List[CodeFile]
     ) -> AgentResponse:
         """Invoke the agent with instructions and return the response."""
         try:
@@ -42,7 +42,7 @@ class CodingAgent:
                 canvas=self.canvas,
                 language=language,
                 invoke_agent_request=invoke_agent_request,
-                previous_code=previous_code
+                existing_code=existing_code
             )
             response = await self.inference_client.generate(prompt)
           
@@ -60,11 +60,6 @@ class CodingAgent:
                     code_parser_response=CodeParserResponse(files=[]),
                     error_message="No text response received from inference"
                 )
-
-            # Print raw LLM response for debugging
-            print("\n=== Raw LLM Response ===")
-            print(response.text_response)
-            print("=======================\n")
 
             # Parse and return the response directly
             return AgentResponse(

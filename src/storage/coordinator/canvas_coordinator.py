@@ -8,7 +8,7 @@ from src.api.models.node_configs.ddb_node_config import (
     DynamoDBAttributeType
 )
 from src.api.models.node_configs.s3_node_config import S3BucketNodeConfig, S3BucketDirectory
-from src.api.models.node_configs.auth_service_node_config import AuthServiceNodeConfig, ApiEndpoint
+from src.api.models.node_configs.api_service_node_config import ApiServiceNodeConfig, ApiEndpoint
 from src.api.models.node_configs.custom_service_node_config import CustomServiceNodeConfig
 from src.api.models.json_encoder import EnumEncoder
 from .base_coordinator import BaseCoordinator
@@ -98,10 +98,10 @@ class CanvasCoordinator(BaseCoordinator):
                                     raise ValueError("S3 directory path is required")
                                 if not directory.description:
                                     raise ValueError("S3 directory description is required")
-                        elif node.nodeType == CanvasNodeType.AUTH_SERVICE and isinstance(node.nodeConfig, AuthServiceNodeConfig):
-                            # Validate auth service config
+                        elif node.nodeType == CanvasNodeType.API_SERVICE and isinstance(node.nodeConfig, ApiServiceNodeConfig):
+                            # Validate API service config
                             if not node.nodeConfig.apiEndpoints:
-                                raise ValueError("Auth service must have at least one API endpoint")
+                                raise ValueError("API service must have at least one API endpoint")
                             for endpoint in node.nodeConfig.apiEndpoints:
                                 if not endpoint.path:
                                     raise ValueError("API endpoint path is required")

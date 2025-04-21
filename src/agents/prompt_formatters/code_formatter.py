@@ -1,9 +1,7 @@
 from src.agents.prompts.dynamodb_prompts import DDB_PROMPTS
 from src.agents.prompts.s3_prompts import S3_PROMPTS
-from src.agents.prompts.data_model_prompts import DATA_MODEL_PROMPTS
-from src.agents.prompts.api_endpoint_prompts import API_ENDPOINT_PROMPTS
-from src.agents.prompts.application_logic_prompts import APPLICATION_LOGIC_PROMPTS
-from src.agents.prompts.application_orchestrator_prompts import APPLICATION_ORCHESTRATOR_PROMPTS
+from src.agents.prompts.custom_service_prompts import CUSTOM_SERVICE_PROMPTS
+from src.agents.prompts.api_service_prompts import API_SERVICE_PROMPTS
 from src.api.models.node_models import CanvasNode, CanvasNodeType
 from src.storage.models.models import CanvasDefinitionDO
 from src.api.models.dataplane_models import ProgrammingLanguage
@@ -21,18 +19,22 @@ class CodePromptFormatter:
             return DDB_PROMPTS.get(language.name.lower())
         elif node.nodeType == CanvasNodeType.S3_BUCKET:
             return S3_PROMPTS.get(language.name.lower())
-        elif node.nodeType == CanvasNodeType.APPLICATION_LOGIC:
-            return APPLICATION_LOGIC_PROMPTS.get(language.name.lower())
-        elif node.nodeType == CanvasNodeType.DATA_MODEL:
-            return DATA_MODEL_PROMPTS.get(language.name.lower())
-        elif node.nodeType == CanvasNodeType.API_ENDPOINT:
-            return API_ENDPOINT_PROMPTS.get(language.name.lower())
-        elif node.nodeType == CanvasNodeType.APPLICATION_ORCHESTRATOR:
-            return APPLICATION_ORCHESTRATOR_PROMPTS.get(language.name.lower())
+        elif node.nodeType == CanvasNodeType.CUSTOM_SERVICE:
+            return CUSTOM_SERVICE_PROMPTS.get(language.name.lower())
+        elif node.nodeType == CanvasNodeType.API_SERVICE:
+            return API_SERVICE_PROMPTS.get(language.name.lower())
         else:
             raise ValueError(f"Unsupported node type: {node.nodeType}")
 
-    def format_previous_code(self, node: CanvasNode, previous_code: List[CodeFile]) -> str:
+    def format_node_code(self, node: CanvasNode, previous_code: List[CodeFile]) -> str:
+        node_code_files = []
+        if previous_code:
+            for file in previous_code:
+                if file.nodeId == node.nodeId:
+                    node_code_files.append(file)
+        return node_code_files
+
+    def format_code_for_node(self, node: CanvasNode, previous_code: List[CodeFile]) -> str:
         node_code_files = []
         if previous_code:
             for file in previous_code:
@@ -45,6 +47,8 @@ class CodePromptFormatter:
         """
         Generate a string in the following format:
         <PreviousCodeFiles>
+            <NodeId>nodeId</NodeId>
+            <NodeName>nodeName</NodeName>
             <CodeFile>
                 <FilePath>src/folder1/folder2/fileName1.fileExtension</FilePath>
                 <Code>code for the file including imports</Code>
@@ -56,11 +60,26 @@ class CodePromptFormatter:
         </PreviousCodeFiles>
         """
 
-        previous_code_string = "<PreviousCodeFiles>\n"
+        code_string = "<PreviousCodeFiles>\n"
+        code_string += f"<NodeId>{node.nodeId}</NodeId>\n"
+        code_string += f"<NodeName>{node.nodeName}</NodeName>\n"
         for file in node_code_files:
-            previous_code_string += f"<CodeFile>\n<FilePath>{file.filePath}</FilePath>\n<Code>{file.code}</Code>\n</CodeFile>\n"
-        previous_code_string += "</PreviousCodeFiles>\n"
-        return previous_code_string
+            code_string += f"<CodeFile>\n<FilePath>{file.filePath}</FilePath>\n<Code>{file.code}</Code>\n</CodeFile>\n"
+        code_string += "</PreviousCodeFiles>\n"
+        return code_string
+
+    def find_dependency_nodes(self, node: CanvasNode, canvas: CanvasDefinitionDO) -> List[CanvasNode]:
+        dependencies = []
+        current_node_id = node.nodeId
+        for edge in canvas.edges:
+            if edge.target == current_node_id:
+                dependencies.append(edge.source)
+
+        dependency_nodes = []
+        for node in canvas.nodes:
+            if node.nodeId in dependencies:
+                dependency_nodes.append(node)
+        return dependency_nodes
     
     def format_prompt(
         self,
@@ -68,7 +87,7 @@ class CodePromptFormatter:
         canvas: CanvasDefinitionDO,
         language: ProgrammingLanguage,
         invoke_agent_request: InvokeAgentRequest,
-        previous_code: List[CodeFile]
+        existing_code: List[CodeFile]
     ) -> str:
         """Format the prompt for code generation."""
         template = self.get_prompt_template(node, language)
@@ -82,35 +101,25 @@ class CodePromptFormatter:
             "typescript": "5.0"
         }.get(language.name.lower(), "latest")
 
-        previous_code_str = self.format_previous_code(node, previous_code)
+        current_node_code = self.format_code_for_node(node, existing_code)
+        dependencies_nodes = self.find_dependency_nodes(node, canvas)
+        dependency_codes = ""
+        for dependency_node in dependencies_nodes:
+            dependency_codes += self.format_code_for_node(dependency_node, existing_code)
+            dependency_codes += "\n\n"
 
-        component_name = ""
-        if node.nodeType == CanvasNodeType.DYNAMO_DB:
-            component_name = f"{node.nodeConfig.get('name', 'DynamoDB')}Table"
-        elif node.nodeType == CanvasNodeType.S3_BUCKET:
-            component_name = f"{node.nodeConfig.get('name', 'S3')}Bucket"
-        elif node.nodeType == CanvasNodeType.APPLICATION_LOGIC:
-            component_name = f"{node.nodeConfig.get('className', 'Application')}ApplicationLogic"
-        elif node.nodeType == CanvasNodeType.DATA_MODEL:
-            component_name = f"{node.nodeConfig.get('modelName', 'DataModel')}DataModel"
-        elif node.nodeType == CanvasNodeType.API_ENDPOINT:
-            component_name = f"{node.nodeConfig.get('endpointName', 'Api')}ApiEndpoint"
-        elif node.nodeType == CanvasNodeType.APPLICATION_ORCHESTRATOR:
-            component_name = f"{node.nodeConfig.get('orchestratorName', 'Orchestrator')}ApplicationOrchestrator"
-
-        # Remove any spaces from the component name
-        component_name = component_name.replace(" ", "")
+        print("Dependency codes first few lines: ", dependency_codes[:100])
 
         formatted_prompt = template.format(
-            component_name=component_name,
+            node_name=node.nodeName,
             current_node_id=node.nodeId,
             instruction_source=invoke_agent_request.query_source.value,
             instruction=invoke_agent_request.query,
             canvas_definition=json.dumps(canvas.to_dict()),
             current_node_definition=json.dumps(node.to_dict()),
-            previous_code=previous_code_str,
+            existing_node_code=current_node_code,
+            dependent_components_code=dependency_codes,
             language=language.name,
             language_version=language_version
         )
-        print(formatted_prompt)
         return formatted_prompt

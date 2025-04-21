@@ -7,7 +7,7 @@ from pydantic import Field
 # Node Configurations
 from .node_configs.s3_node_config import S3BucketNodeConfig
 from .node_configs.ddb_node_config import DynamoDbNodeConfig
-from .node_configs.auth_service_node_config import AuthServiceNodeConfig
+from .node_configs.api_service_node_config import ApiServiceNodeConfig
 from .node_configs.custom_service_node_config import CustomServiceNodeConfig
 
 
@@ -17,7 +17,7 @@ class CanvasNodeType(str, Enum):
     """Enum representing different types of canvas nodes."""
     DYNAMO_DB = "DYNAMO_DB"
     S3_BUCKET = "S3_BUCKET"
-    AUTH_SERVICE = "AUTH_SERVICE"
+    API_SERVICE = "API_SERVICE"
     CUSTOM_SERVICE = "CUSTOM_SERVICE"
 
     def __str__(self) -> str:
@@ -55,7 +55,7 @@ class CanvasNode:
     nodeConfig: Optional[Union[
         DynamoDbNodeConfig,
         S3BucketNodeConfig,
-        AuthServiceNodeConfig,
+        ApiServiceNodeConfig,
         CustomServiceNodeConfig
     ]] = Field(None, description="Configuration specific to the node type")
 
@@ -113,8 +113,8 @@ class CanvasNode:
                     node_config = DynamoDbNodeConfig.from_dict(node_config)
                 elif node_type == CanvasNodeType.S3_BUCKET:
                     node_config = S3BucketNodeConfig.from_dict(node_config)
-                elif node_type == CanvasNodeType.AUTH_SERVICE:
-                    node_config = AuthServiceNodeConfig.from_dict(node_config)
+                elif node_type == CanvasNodeType.API_SERVICE:
+                    node_config = ApiServiceNodeConfig.from_dict(node_config)
                 elif node_type == CanvasNodeType.CUSTOM_SERVICE:
                     node_config = CustomServiceNodeConfig.from_dict(node_config)
             except Exception as e:
@@ -149,7 +149,7 @@ class CanvasNode:
                 raise ValueError("DynamoDB node requires DynamoDbNodeConfig")
             elif self.nodeType == CanvasNodeType.S3_BUCKET and not isinstance(self.nodeConfig, S3BucketNodeConfig):
                 raise ValueError("S3 bucket node requires S3BucketNodeConfig")
-            elif self.nodeType == CanvasNodeType.AUTH_SERVICE and not isinstance(self.nodeConfig, AuthServiceNodeConfig):
-                raise ValueError("Auth service node requires AuthServiceNodeConfig")
+            elif self.nodeType == CanvasNodeType.API_SERVICE and not isinstance(self.nodeConfig, ApiServiceNodeConfig):
+                raise ValueError("Api service node requires ApiServiceNodeConfig")
             elif self.nodeType == CanvasNodeType.CUSTOM_SERVICE and not isinstance(self.nodeConfig, CustomServiceNodeConfig):
                 raise ValueError("Custom service node requires CustomServiceNodeConfig")

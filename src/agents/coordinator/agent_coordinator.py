@@ -17,7 +17,6 @@ import logging
 @dataclass
 class AgentCoordinatorGenerateCodeResponse:
     files: List[CodeFile]
-    deletedFiles: List[CodeFile]
 
 class AgentCoordinator:
     """Coordinates agent operations for different node types."""
@@ -37,7 +36,7 @@ class AgentCoordinator:
         node: CanvasNode,
         canvas: CanvasDefinitionDO,
         language: ProgrammingLanguage,
-        previous_code: List[CodeFile],
+        existing_code: List[CodeFile],
         inference_provider: str = "bedrock"
     ) -> AgentCoordinatorGenerateCodeResponse:
         try:
@@ -53,12 +52,11 @@ class AgentCoordinator:
                     query_source=InvokeAgentQuerySource.USER
                 ),
                 language=language,
-                previous_code=previous_code
+                existing_code=existing_code
             )
 
             return AgentCoordinatorGenerateCodeResponse (
-                files=response.code_parser_response.files,
-                deletedFiles=[]
+                files=response.code_parser_response.files
             )
 
         except Exception as e:
