@@ -2,86 +2,72 @@ from .common_prompts import COMMON_CODE_GENERATION_INSTRUCTIONS
 
 PYTHON_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate an S3 bucket DAO layer in Python using boto3.
+Generate an S3-backed architectural component in Python using boto3.
 
 Instructions:
-1. Use boto3 for AWS S3 operations
-2. Include proper docstrings and type hints
-3. Include methods for CRUDL operations:
+1. Create a helper class for common S3 operations using boto3
+2. Include methods for CRUDL operations:
    - Uploading files
    - Downloading files
    - Listing objects
    - Deleting objects
-4. Include proper error handling for S3-specific errors
-5. Use best practices for S3 operations
-6. Follow PEP 8 style guide
-7. Use dataclasses for data models
-8. Include async support where appropriate
-9. Make the code production-ready
-10. Include all necessary imports
-11. Use proper type hints
-12. Use async/await where appropriate
-13. Handle large file uploads with multipart upload
-14. Include proper logging
-15. Support different storage classes
-16. Note down the file path and bucket description and provide code accordingly
+3. Include class-level config for:
+   - Bucket name
+   - Default storage class
+   - Base path (if provided)
+4. Use best practices: multipart upload, retries, public/private ACLs if needed
+5. Structure code into `dao/` for logic and `models/` for any data representations
+6. Include custom exception handling for S3-specific errors (e.g., NoSuchKey, AccessDenied)
+7. Use dataclasses where relevant, and type hints throughout
+8. Include proper logging and error messages
+9. Use PEP8 and idiomatic Python style
+10. Generate corresponding unit tests for all public methods under `tst/<flow>/dao/`
 """
 
 JAVA_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate an S3 bucket DAO layer in Java using AWS SDK v2.
+Generate an S3-backed architectural component in Java using AWS SDK v2.
 
 Instructions:
-1. Use AWS SDK v2 for S3 operations
-2. Include proper annotations and documentation
-3. Include methods for CRUDL operations:
-   - Uploading files
+1. Implement a utility class or service for S3 operations using AWS SDK v2
+2. Include methods for:
+   - Uploading files (including multipart uploads)
    - Downloading files
-   - Listing objects
-   - Deleting objects
-4. Include proper error handling for S3-specific errors
-5. Use best practices for S3 operations
-6. Follow Java coding conventions and style
-7. Include comprehensive Javadoc
-8. Use appropriate access modifiers
-9. Make the code production-ready
-10. Include all necessary imports
-11. Use proper Java annotations
-12. Include proper exception handling
-13. Handle large file uploads with multipart upload
-14. Include proper logging
-15. Support different storage classes
-16. Note down the file path and bucket description and provide code accordingly"""
+   - Listing files
+   - Deleting files
+3. Add configuration for bucket name, region, and base path prefix
+4. Handle common exceptions (NoSuchKey, AmazonServiceException, etc.)
+5. Include logging, retries, and proper error propagation
+6. Use appropriate access modifiers, Java conventions, and annotations
+7. Add proper Javadoc for methods and classes
+8. Structure logic into `dao/` and unit tests under `tst/`
+9. Ensure the code is production-grade and testable
+"""
 
 TYPESCRIPT_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
-Generate an S3 bucket DAO layer in TypeScript using AWS SDK v3.
+Generate an S3-backed architectural component in TypeScript using AWS SDK v3.
 
 Instructions:
-1. Use AWS SDK v3 for S3 operations
-2. Include proper TypeScript types and interfaces
-3. Include methods for CRUDL operations:
-   - Uploading files
+1. Implement a class to encapsulate S3 logic using `@aws-sdk/client-s3`
+2. Add support for:
+   - Uploading files (multipart uploads included)
    - Downloading files
-   - Listing objects
-   - Deleting objects
-4. Include proper error handling for S3-specific errors
-5. Use best practices for S3 operations
-6. Follow TypeScript best practices
-7. Use async/await for all operations
-8. Include proper JSDoc documentation
-9. Use strict TypeScript mode
-10. Make the code production-ready
-11. Include all necessary imports
-12. Use proper TypeScript types
-13. Handle large file uploads with multipart upload
-14. Include proper logging
-15. Support different storage classes
-16. Note down the file path and bucket description and provide code accordingly"""
+   - Listing contents
+   - Deleting files
+3. Define config for bucket name, region, and optional base path
+4. Use strong types and interfaces for method parameters and responses
+5. Add proper error handling for S3-specific errors
+6. Include logging and tracing where relevant
+7. Follow TypeScript best practices and project conventions
+8. Include JSDoc for each method
+9. Structure the component in `dao/` and generate corresponding unit tests in `tst/`
+10. Ensure the code is clean, reusable, and production-ready
+"""
 
 # Map of language to prompt template
 S3_PROMPTS = {
     "python": PYTHON_PROMPT,
     "java": JAVA_PROMPT,
     "typescript": TYPESCRIPT_PROMPT
-} 
+}

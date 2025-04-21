@@ -3,12 +3,13 @@ from src.storage.dynamodb.canvas_dao import CanvasDAO
 from src.storage.s3.s3_dao import S3DAO
 from src.storage.models.models import CanvasDO, CanvasDefinitionDO
 from src.api.models.node_models import CanvasNodeType
-from src.api.models.node_configs.dynamodb_node_config import (
+from src.api.models.node_configs.ddb_node_config import (
     DynamoDbNodeConfig,
-    DynamoDBAttributeType,
-    DynamoDBBillingMode,
-    DynamoDBInfraConfig
+    DynamoDBAttributeType
 )
+from src.api.models.node_configs.s3_node_config import S3BucketNodeConfig, S3BucketDirectory
+from src.api.models.node_configs.auth_service_node_config import AuthServiceNodeConfig, ApiEndpoint
+from src.api.models.node_configs.custom_service_node_config import CustomServiceNodeConfig
 from src.api.models.json_encoder import EnumEncoder
 from .base_coordinator import BaseCoordinator
 import json
@@ -80,18 +81,38 @@ class CanvasCoordinator(BaseCoordinator):
                     print(f"Node attributes: {dir(node)}")
                     if not node.nodeType:
                         node.nodeType = CanvasNodeType.DYNAMO_DB
-                    if node.nodeConfig and isinstance(node.nodeConfig, DynamoDbNodeConfig):
-                        # Set default values for DynamoDB node config
-                        for attr in node.nodeConfig.attributes:
-                            if not attr.type:
-                                attr.type = DynamoDBAttributeType.STRING
-                        if not node.nodeConfig.infraSpec:
-                            node.nodeConfig.infraSpec = DynamoDBInfraConfig(
-                                billingMode=DynamoDBBillingMode.PAY_PER_REQUEST,
-                                encryption=True
-                            )
-                        elif not node.nodeConfig.infraSpec.billingMode:
-                            node.nodeConfig.infraSpec.billingMode = DynamoDBBillingMode.PAY_PER_REQUEST
+                    
+                    # Handle node config based on node type
+                    if node.nodeConfig:
+                        if node.nodeType == CanvasNodeType.DYNAMO_DB and isinstance(node.nodeConfig, DynamoDbNodeConfig):
+                            # Set default values for DynamoDB node config
+                            for attr in node.nodeConfig.attributes:
+                                if not attr.type:
+                                    attr.type = DynamoDBAttributeType.STRING
+                        elif node.nodeType == CanvasNodeType.S3_BUCKET and isinstance(node.nodeConfig, S3BucketNodeConfig):
+                            # Validate S3 bucket config
+                            if not node.nodeConfig.directories:
+                                raise ValueError("S3 bucket must have at least one directory")
+                            for directory in node.nodeConfig.directories:
+                                if not directory.path:
+                                    raise ValueError("S3 directory path is required")
+                                if not directory.description:
+                                    raise ValueError("S3 directory description is required")
+                        elif node.nodeType == CanvasNodeType.AUTH_SERVICE and isinstance(node.nodeConfig, AuthServiceNodeConfig):
+                            # Validate auth service config
+                            if not node.nodeConfig.apiEndpoints:
+                                raise ValueError("Auth service must have at least one API endpoint")
+                            for endpoint in node.nodeConfig.apiEndpoints:
+                                if not endpoint.path:
+                                    raise ValueError("API endpoint path is required")
+                                if not endpoint.method:
+                                    raise ValueError("API endpoint method is required")
+                                if not endpoint.description:
+                                    raise ValueError("API endpoint description is required")
+                        elif node.nodeType == CanvasNodeType.CUSTOM_SERVICE and isinstance(node.nodeConfig, CustomServiceNodeConfig):
+                            # Validate custom service config
+                            if not node.nodeConfig.description:
+                                raise ValueError("Custom service description is required")
 
                 # Generate S3 URI for the canvas definition
                 s3_uri = f"s3://{self.s3_dao.bucket_name}/canvas-definitions/{canvas_do.customer_id}/{canvas_do.canvas_id}/{canvas_do.canvas_version}.json"

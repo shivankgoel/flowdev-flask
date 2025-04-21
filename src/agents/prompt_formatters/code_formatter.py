@@ -84,7 +84,25 @@ class CodePromptFormatter:
 
         previous_code_str = self.format_previous_code(node, previous_code)
 
+        component_name = ""
+        if node.nodeType == CanvasNodeType.DYNAMO_DB:
+            component_name = f"{node.nodeConfig.get('name', 'DynamoDB')}Table"
+        elif node.nodeType == CanvasNodeType.S3_BUCKET:
+            component_name = f"{node.nodeConfig.get('name', 'S3')}Bucket"
+        elif node.nodeType == CanvasNodeType.APPLICATION_LOGIC:
+            component_name = f"{node.nodeConfig.get('className', 'Application')}ApplicationLogic"
+        elif node.nodeType == CanvasNodeType.DATA_MODEL:
+            component_name = f"{node.nodeConfig.get('modelName', 'DataModel')}DataModel"
+        elif node.nodeType == CanvasNodeType.API_ENDPOINT:
+            component_name = f"{node.nodeConfig.get('endpointName', 'Api')}ApiEndpoint"
+        elif node.nodeType == CanvasNodeType.APPLICATION_ORCHESTRATOR:
+            component_name = f"{node.nodeConfig.get('orchestratorName', 'Orchestrator')}ApplicationOrchestrator"
+
+        # Remove any spaces from the component name
+        component_name = component_name.replace(" ", "")
+
         formatted_prompt = template.format(
+            component_name=component_name,
             current_node_id=node.nodeId,
             instruction_source=invoke_agent_request.query_source.value,
             instruction=invoke_agent_request.query,

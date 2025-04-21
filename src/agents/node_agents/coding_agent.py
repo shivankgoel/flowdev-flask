@@ -9,6 +9,7 @@ from src.api.models.dataplane_models import ProgrammingLanguage
 from src.agents.llm_response_parsers.code_parser import CodeParser
 from typing import List
 from src.api.models.dataplane_models import CodeFile
+from src.agents.models.agent_models import CodeParserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +50,15 @@ class CodingAgent:
             if response.error:
                 return AgentResponse(
                     agent_node_id=self.node.nodeId,
-                    code="",
-                    error=f"Inference error: {response.error}"
+                    code_parser_response=CodeParserResponse(files=[]),
+                    error_message=f"Inference error: {response.error}"
                 )
 
             if not response.text_response:
                 return AgentResponse(
                     agent_node_id=self.node.nodeId,
-                    code="",
-                    error="No text response received from inference"
+                    code_parser_response=CodeParserResponse(files=[]),
+                    error_message="No text response received from inference"
                 )
 
             # Print raw LLM response for debugging
@@ -75,7 +76,7 @@ class CodingAgent:
             self.logger.error(f"Error generating code: {str(e)}")
             return AgentResponse(
                 agent_node_id=self.node.nodeId,
-                code="",
-                error=f"Failed to generate code: {str(e)}"
+                code_parser_response=CodeParserResponse(files=[]),
+                error_message=f"Failed to generate code: {str(e)}"
             )
 

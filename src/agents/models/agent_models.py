@@ -1,6 +1,7 @@
 from enum import Enum
 from dataclasses import dataclass
 from src.agents.models.parser_models import CodeParserResponse
+from typing import Optional
 
 
 class InvokeAgentQuerySource(Enum):
@@ -22,4 +23,5 @@ class AgentStep(Enum):
 class AgentResponse:
     agent_node_id: str
     code_parser_response: CodeParserResponse
+    error_message: Optional[str] = None
     
