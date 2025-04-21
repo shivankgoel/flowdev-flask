@@ -50,14 +50,14 @@ class CodingAgent:
             if response.error:
                 return AgentResponse(
                     agent_node_id=self.node.nodeId,
-                    code_parser_response=CodeParserResponse(files=[]),
+                    code_parser_response=CodeParserResponse(addedFiles=[], updatedFiles=[], deletedFiles=[]),
                     error_message=f"Inference error: {response.error}"
                 )
 
             if not response.text_response:
                 return AgentResponse(
                     agent_node_id=self.node.nodeId,
-                    code_parser_response=CodeParserResponse(files=[]),
+                    code_parser_response=CodeParserResponse(addedFiles=[], updatedFiles=[], deletedFiles=[]),
                     error_message="No text response received from inference"
                 )
 

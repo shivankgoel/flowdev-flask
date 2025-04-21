@@ -11,12 +11,13 @@ from src.api.models.dataplane_models import CodeFile
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json, LetterCase
 from typing import List
+from src.agents.models.parser_models import CodeParserResponse
 import logging
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class AgentCoordinatorGenerateCodeResponse:
-    files: List[CodeFile]
+    code_parser_response: CodeParserResponse
 
 class AgentCoordinator:
     """Coordinates agent operations for different node types."""
@@ -56,7 +57,7 @@ class AgentCoordinator:
             )
 
             return AgentCoordinatorGenerateCodeResponse (
-                files=response.code_parser_response.files
+                code_parser_response=response.code_parser_response
             )
 
         except Exception as e:

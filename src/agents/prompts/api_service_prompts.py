@@ -3,6 +3,7 @@ from .common_prompts import COMMON_CODE_GENERATION_INSTRUCTIONS
 PYTHON_PROMPT = f"""{COMMON_CODE_GENERATION_INSTRUCTIONS}
 
 Generate an API service architectural component in Python.
+Make a FastAPI service with the following instructions:
 
 Instructions:
 1. Create a service that encapsulates the API logic. Define a strongly typed service interface.

@@ -146,12 +146,12 @@ class DataplaneCoordinator(BaseCoordinator):
         updated_files = [] # files that exist in both old and new code
         deleted_files = [] # files that exist in old code but not in new code
         for new_file in new_code_files:
-            if new_file not in old_code_for_current_node:
+            if new_file.filePath not in [file.filePath for file in old_code_for_current_node]:
                 added_files.append(new_file)
             else:
                 updated_files.append(new_file)
         for old_file in old_code_for_current_node:
-            if old_file not in new_code_files:
+            if old_file.filePath not in [file.filePath for file in new_code_files]:
                 deleted_files.append(old_file)
         return GenerateCodeResponse (
             addedFiles=added_files,
@@ -202,13 +202,11 @@ class DataplaneCoordinator(BaseCoordinator):
                 inference_provider="bedrock"  # Default to Bedrock for now
             )
 
-            new_code_files: List[CodeFile] = response.files
-
             # Merge existing and new code
-            return self.merge_existing_and_new_code(
-                target_node.nodeId,
-                existing_code if existing_code else [],
-                new_code_files,
+            return GenerateCodeResponse(
+                addedFiles=response.code_parser_response.addedFiles,
+                updatedFiles=response.code_parser_response.updatedFiles,
+                deletedFiles=response.code_parser_response.deletedFiles
             )
 
         except Exception as e:

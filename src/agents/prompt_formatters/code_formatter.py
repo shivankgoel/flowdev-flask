@@ -46,7 +46,7 @@ class CodePromptFormatter:
 
         """
         Generate a string in the following format:
-        <PreviousCodeFiles>
+        <ExistingCodeFiles>
             <NodeId>nodeId</NodeId>
             <NodeName>nodeName</NodeName>
             <CodeFile>
@@ -57,15 +57,17 @@ class CodePromptFormatter:
                 <FilePath>src/folder1/folder3/fileName2.fileExtension</FilePath>
                 <Code>code for the file including imports</Code>
             </CodeFile>
-        </PreviousCodeFiles>
+        </ExistingCodeFiles>
         """
 
-        code_string = "<PreviousCodeFiles>\n"
+        print(f"Found {len(node_code_files)} existing code files for node {node.nodeName}")
+
+        code_string = "<ExistingCodeFiles>\n"
         code_string += f"<NodeId>{node.nodeId}</NodeId>\n"
         code_string += f"<NodeName>{node.nodeName}</NodeName>\n"
         for file in node_code_files:
             code_string += f"<CodeFile>\n<FilePath>{file.filePath}</FilePath>\n<Code>{file.code}</Code>\n</CodeFile>\n"
-        code_string += "</PreviousCodeFiles>\n"
+        code_string += "</ExistingCodeFiles>\n"
         return code_string
 
     def find_dependency_nodes(self, node: CanvasNode, canvas: CanvasDefinitionDO) -> List[CanvasNode]:
