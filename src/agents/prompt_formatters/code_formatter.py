@@ -67,8 +67,8 @@ class CodePromptFormatter:
             return ""
 
         code_string = "<ExistingCodeFiles>\n"
-        code_string += f"<NodeId>{canvas.canvas_id}</NodeId>\n"
-        code_string += f"<NodeName>{canvas.canvas_name}</NodeName>\n"
+        code_string += f"<CanvasId>{canvas.canvas_id}</CanvasId>\n"
+        code_string += f"<CanvasName>{canvas.canvas_name}</CanvasName>\n"
         for file in canvas_code_files:
             code_string += f"<CodeFile>\n<FilePath>{file.filePath}</FilePath>\n<Code>{file.code}</Code>\n</CodeFile>\n"
         code_string += "</ExistingCodeFiles>\n"
@@ -88,16 +88,26 @@ class CodePromptFormatter:
                 dependency_nodes.append(node)
         return dependency_nodes
 
+    def find_terminal_nodes(self, canvas: CanvasDefinitionDO) -> List[CanvasNode]:
+        """Find all nodes in the canvas which don't have any outgoing edges (terminal nodes)."""
+        # Collect all node IDs that are sources in any edge
+        source_node_ids = {edge.source for edge in canvas.edges}
+        # Terminal nodes are those whose nodeId is not in the set of source node IDs
+        terminal_nodes = [node for node in canvas.nodes if node.nodeId not in source_node_ids]
+        return terminal_nodes
+
     def get_project_structure(self, existing_code: List[CodeFile]) -> str:
         """Generate a string representation of the project structure."""
         structure = ""
         for file in existing_code:
-            structure += f"{file.filePath}\n"
+            structure += f"<FileOwner>{file.nodeId}</FileOwner>\n"
+            structure += f"<FilePath>{file.filePath}</FilePath>\n"
         return structure
     
     def format_prompt(
         self,
         node: CanvasNode,
+        canvas: CanvasDO,
         canvas_definition: CanvasDefinitionDO,
         language: ProgrammingLanguage,
         invoke_agent_request: InvokeAgentRequest,
@@ -108,32 +118,27 @@ class CodePromptFormatter:
         if not template:
             raise ValueError(f"Unsupported language: {language}")
 
-        # Set language version based on language
-        language_version = {
-            "python": "3.9",
-            "java": "17",
-            "typescript": "5.0"
-        }.get(language.name.lower(), "latest")
-
         current_node_code = self.format_code_for_node(node, existing_code)
         dependencies_nodes = self.find_dependency_nodes(node, canvas_definition)
-        dependency_codes = ""
+        dependencies_code = ""
         for dependency_node in dependencies_nodes:
-            dependency_codes += self.format_code_for_node(dependency_node, existing_code)
-            dependency_codes += "\n\n"
+            dependencies_code += self.format_code_for_node(dependency_node, existing_code)
+            dependencies_code += "\n\n"
+
+        project_structure = self.get_project_structure(existing_code)
 
         formatted_prompt = template.format(
+            canvas_id=canvas.canvas_id,
+            canvas_name=canvas.canvas_name,
+            canvas_definition=json.dumps(canvas_definition.to_dict()),
             node_id=node.nodeId,
             node_name=node.nodeName,
-            current_node_id=node.nodeId,
-            instruction_source=invoke_agent_request.query_source.value,
-            instruction=invoke_agent_request.query,
-            canvas_definition=json.dumps(canvas_definition.to_dict()),
             node_definition=json.dumps(node.to_dict()),
-            existing_code=current_node_code,
-            dependent_components_code=dependency_codes,
             language=language.name,
-            language_version=language_version
+            language_version=language.version,
+            existing_files=project_structure,
+            existing_code=current_node_code,
+            dependencies_code=dependencies_code,
         )
         return formatted_prompt
 
@@ -150,25 +155,23 @@ class CodePromptFormatter:
         if not template:
             raise ValueError(f"Unsupported language: {language}")
 
-        # Set language version based on language
-        language_version = {
-            "python": "3.9",
-            "java": "17",
-            "typescript": "5.0"
-        }.get(language.name.lower(), "latest")
-
         current_canvas_code = self.format_code_for_canvas(canvas, existing_code)
         project_structure = self.get_project_structure(existing_code)
 
+        terminal_nodes = self.find_terminal_nodes(canvas_definition)
+        dependencies_code = ""
+        for dependency_node in terminal_nodes:
+            dependencies_code += self.format_code_for_node(dependency_node, existing_code)
+            dependencies_code += "\n\n"
+
         formatted_prompt = template.format(
-            node_id=canvas.canvas_id,
-            node_name=canvas.canvas_name,
-            instruction_source=invoke_agent_request.query_source.value,
-            instruction=invoke_agent_request.query,
+            canvas_id=canvas.canvas_id,
+            canvas_name=canvas.canvas_name,
             canvas_definition=json.dumps(canvas_definition.to_dict()),
-            existing_code=current_canvas_code,
-            project_structure=project_structure,
             language=language.name,
-            language_version=language_version
+            language_version=language.version,
+            existing_code=current_canvas_code,
+            existing_files=project_structure,
+            dependencies_code=dependencies_code,
         )
         return formatted_prompt

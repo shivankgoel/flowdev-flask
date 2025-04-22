@@ -25,7 +25,7 @@ class CodingAgent:
         self.canvas = canvas
         self.canvas_definition = canvas_definition
         self.node = node
-        self.code_parser = CodeParser(node_id=node.nodeId)
+        self.code_parser = CodeParser(canvas_id=canvas.canvas_id, node_id=node.nodeId)
         self.formatter = CodePromptFormatter()
         self.logger = logger
         
@@ -40,6 +40,7 @@ class CodingAgent:
         try:
             # Format prompt
             node_prompt = self.formatter.format_prompt(
+                canvas=self.canvas,
                 node=self.node,
                 canvas_definition=self.canvas_definition,
                 language=language,
@@ -55,7 +56,7 @@ class CodingAgent:
             )
             node_response = await self.inference_client.generate(node_prompt)
             canvas_response = await self.inference_client.generate(canvas_prompt)
-          
+
             # Handle different response types
             if node_response.error or canvas_response.error:
                 return AgentResponse(
@@ -72,12 +73,12 @@ class CodingAgent:
                 )
 
             if node_response.text_response:
-                node_parser_response = self.code_parser.parse(node_response.text_response, language)
+                node_parser_response = self.code_parser.parse(node_response.text_response, language, isCanvas=False)
             else:
                 node_parser_response = CodeParserResponse(addedFiles=[], updatedFiles=[], deletedFiles=[], reasoningSteps=[])
 
             if canvas_response.text_response:
-                canvas_parser_response = self.code_parser.parse(canvas_response.text_response, language)
+                canvas_parser_response = self.code_parser.parse(canvas_response.text_response, language, isCanvas=True)
             else:
                 canvas_parser_response = CodeParserResponse(addedFiles=[], updatedFiles=[], deletedFiles=[], reasoningSteps=[])
 

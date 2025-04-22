@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 class CodeParser:
     """Parser for code generation responses."""
     
-    def __init__(self, node_id: str):
+    def __init__(self, canvas_id: str, node_id: str):
+        self.canvas_id = canvas_id
         self.node_id = node_id
     
     def _parse_reasoning(self, response: str) -> List[ReasoningStep]:
@@ -26,7 +27,7 @@ class CodeParser:
                     reasoning_steps.append(ReasoningStep(reason=reason_match.group(1).strip()))
         return reasoning_steps
     
-    def parse(self, response: str, language: ProgrammingLanguage) -> CodeParserResponse:
+    def parse(self, response: str, language: ProgrammingLanguage, isCanvas: bool = False) -> CodeParserResponse:
         """Extract code files and reasoning from XML tags."""
         try:
             # Initialize lists for different types of files
@@ -46,7 +47,7 @@ class CodeParser:
                     code_match = re.search(r'<Code>(.*?)</Code>', match.group(1), re.DOTALL)
                     if file_path_match and code_match:
                         added_files.append(CodeFile(
-                            nodeId=self.node_id,
+                            nodeId=self.canvas_id if isCanvas else self.node_id,
                             filePath=file_path_match.group(1).strip(),
                             code=code_match.group(1).strip(),
                             programmingLanguage=language
@@ -61,7 +62,7 @@ class CodeParser:
                     code_match = re.search(r'<Code>(.*?)</Code>', match.group(1), re.DOTALL)
                     if file_path_match and code_match:
                         updated_files.append(CodeFile(
-                            nodeId=self.node_id,
+                            nodeId=self.canvas_id if isCanvas else self.node_id,
                             filePath=file_path_match.group(1).strip(),
                             code=code_match.group(1).strip(),
                             programmingLanguage=language
@@ -76,7 +77,7 @@ class CodeParser:
                     code_match = re.search(r'<Code>(.*?)</Code>', match.group(1), re.DOTALL)
                     if file_path_match and code_match:
                         deleted_files.append(CodeFile(
-                            nodeId=self.node_id,
+                            nodeId=self.canvas_id if isCanvas else self.node_id,
                             filePath=file_path_match.group(1).strip(),
                             code=code_match.group(1).strip(),
                             programmingLanguage=language
@@ -86,9 +87,10 @@ class CodeParser:
             if not (added_files or updated_files or deleted_files):
                 logger.warning(f"No code files found in XML tags for {language}")
 
-            print("Reasoning steps:")
+            print(f"\nReasoning steps by {self.canvas_id if isCanvas else self.node_id}:")
             for step in reasoning_steps:
                 print(step.reason)
+            print("\n\n")
             
             return CodeParserResponse(
                 addedFiles=added_files,
