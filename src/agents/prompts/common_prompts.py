@@ -5,30 +5,33 @@ These nodes together form a logical service layer deployed to a specific compute
 You are responsible for generating **complete, production-grade code** for **your assigned node**, ensuring seamless interaction with its dependent components and adherence to contract boundaries.
 
 ### Assignment Details:
+- Assigned Node Id: **{node_id}**
 - Assigned Component Name: **{node_name}**
-- Request Source: **{instruction_source}**
-- Instruction:  
-  {instruction}
+- Assigned Node Definition: **{node_definition}**
+- Request Source (if any): **{instruction_source}**
+- Instruction (if any):  **{instruction}**
 
 If no instruction is present, default to implementing the full functionality implied by the node’s definition and its role in the canvas.
 
 ---
 
 ### Canvas Blueprint:
+You can refer to overall canvas definition to understand the overall architecture of the system.
 {canvas_definition}
 
-### Node Specification:
-{current_node_definition}
 
 ### Existing Code For This Node {node_name} (if any):
-{existing_node_code}
+You can refer to the existing code for this node to understand the current implementation.
+Make sure to see if the code has deviated from the assigned node definition. **{node_definition}**
+{existing_code}
 
 ### Programming Language:
+Please generate code in the following programming language:
 - Language: **{language}**
 - Version: **{language_version}**
 
 ### Dependency Nodes:
-You are allowed to invoke or integrate with the following components:
+You MUST integrate cleanly with the following downstream components to achieve your business logic (if any):
 {dependent_components_code}
 
 ---

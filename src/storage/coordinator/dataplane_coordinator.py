@@ -196,7 +196,8 @@ class DataplaneCoordinator(BaseCoordinator):
             # Generate code using agent coordinator
             response = await self.agent_coordinator.generate_code(
                 node=target_node,
-                canvas=canvas_definition,
+                canvas_definition=canvas_definition,
+                canvas=canvas_do,
                 language=request.programmingLanguage,
                 existing_code=existing_code,
                 inference_provider="bedrock"  # Default to Bedrock for now

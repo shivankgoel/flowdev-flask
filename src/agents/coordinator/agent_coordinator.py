@@ -5,7 +5,7 @@ from src.storage.coordinator.base_coordinator import StorageCoordinatorError
 from src.api.models.node_models import CanvasNode
 from src.api.models.dataplane_models import ProgrammingLanguage
 from src.agents.node_agents.coding_agent import CodingAgent
-from src.storage.models.models import CanvasDefinitionDO
+from src.storage.models.models import CanvasDefinitionDO, CanvasDO
 from src.agents.models.agent_models import InvokeAgentRequest, InvokeAgentQuerySource
 from src.api.models.dataplane_models import CodeFile
 from dataclasses import dataclass
@@ -35,7 +35,8 @@ class AgentCoordinator:
     async def generate_code(
         self,
         node: CanvasNode,
-        canvas: CanvasDefinitionDO,
+        canvas_definition: CanvasDefinitionDO,
+        canvas: CanvasDO,
         language: ProgrammingLanguage,
         existing_code: List[CodeFile],
         inference_provider: str = "bedrock"
@@ -44,6 +45,7 @@ class AgentCoordinator:
             agent = CodingAgent (
                 inference_client=self._get_inference_client(inference_provider),
                 node=node,
+                canvas_definition=canvas_definition,
                 canvas=canvas
             )
 
